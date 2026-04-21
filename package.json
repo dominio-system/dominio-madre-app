@@ -1,0 +1,65 @@
+{
+  "name": "dominio-corporativo",
+  "productName": "Dominio Corporativo",
+  "version": "1.0.1",
+  "description": "Panel corporativo de Dominio — analytics, negocio, plataforma, organización, sistema y soporte",
+  "main": "main.js",
+  "author": {
+    "name": "Dominio",
+    "email": "hola@dominiosystem.com"
+  },
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build:mac": "electron-builder --mac",
+    "build:win": "electron-builder --win"
+  },
+  "devDependencies": {
+    "electron": "^41.2.0",
+    "electron-builder": "^26.8.1"
+  },
+  "build": {
+    "appId": "com.dominio.corporativo",
+    "productName": "Dominio Corporativo",
+    "copyright": "© 2026 Dominio",
+    "files": [
+      "main.js",
+      "preload.js",
+      "login.html",
+      "dashboard-madre.html",
+      "assets/**"
+    ],
+    "mac": {
+      "category": "public.app-category.business",
+      "icon": "assets/icon.icns",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        }
+      ]
+    },
+    "dmg": {
+      "title": "Dominio Corporativo",
+      "backgroundColor": "#0c0c0c",
+      "window": {
+        "width": 540,
+        "height": 380
+      }
+    },
+    "win": {
+      "icon": "assets/icon.png",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "Dominio Corporativo"
+    }
+  }
+}

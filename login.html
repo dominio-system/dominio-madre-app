@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Dominio Corporativo · Login</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --bg:#0c0c0c;--card:#141414;--card2:#1a1a1a;--card3:#1e1e1e;
+  --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.12);
+  --accent:#e8e8e8;
+  --success:#6fcf97;--success-s:rgba(111,207,151,0.10);
+  --danger:#eb5757;--danger-s:rgba(235,87,87,0.10);
+  --text:#f0f0f0;--text2:#aaaaaa;--text3:#777777;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Geist',sans-serif;height:100vh;display:flex;align-items:center;justify-content:center;-webkit-app-region:drag;overflow:hidden;}
+.drag-handle{position:fixed;top:0;left:0;right:0;height:28px;-webkit-app-region:drag;z-index:10;}
+.login-card{width:400px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:36px 32px;-webkit-app-region:no-drag;position:relative;overflow:hidden;}
+.login-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(232,232,232,0.3),transparent);}
+.logo-wrap{display:flex;align-items:center;gap:12px;margin-bottom:28px;}
+.logo-icon{width:40px;height:40px;border-radius:9px;overflow:hidden;border:1px solid var(--border2);background:var(--card2);}
+.logo-icon img{width:100%;height:100%;object-fit:cover;}
+.logo-brand{font-size:15px;font-weight:600;letter-spacing:-0.3px;}
+.logo-sub{font-size:9px;color:var(--text3);letter-spacing:2px;font-family:'Geist Mono',monospace;margin-top:2px;}
+.title{font-size:20px;font-weight:500;letter-spacing:-0.02em;margin-bottom:6px;}
+.sub{font-size:13px;color:var(--text2);line-height:1.5;margin-bottom:24px;}
+.field{margin-bottom:14px;}
+.field-label{font-size:9px;letter-spacing:1.8px;color:var(--text3);font-family:'Geist Mono',monospace;text-transform:uppercase;margin-bottom:6px;font-weight:500;}
+.field-input{width:100%;background:var(--card2);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;font-family:inherit;font-size:13px;outline:none;transition:all 150ms;}
+.field-input:focus{border-color:var(--border2);background:var(--card3);}
+.btn{width:100%;padding:11px;background:var(--accent);color:#000;border:none;border-radius:7px;font-size:13px;font-weight:500;font-family:inherit;cursor:pointer;transition:all 150ms;}
+.btn:hover{background:#fff;}
+.btn:disabled{opacity:0.5;cursor:not-allowed;}
+.msg{padding:10px 12px;border-radius:6px;font-size:11px;margin-bottom:14px;display:none;}
+.msg.show{display:block;}
+.msg.err{background:var(--danger-s);border:1px solid rgba(235,87,87,0.2);color:var(--danger);}
+.msg.ok{background:var(--success-s);border:1px solid rgba(111,207,151,0.2);color:var(--success);}
+.footer{margin-top:20px;text-align:center;}
+.footer-text{font-size:11px;color:var(--text3);}
+.footer-text a{color:var(--accent);text-decoration:none;}
+.footer-text a:hover{text-decoration:underline;}
+.mode-badge{display:inline-block;font-size:9px;padding:2px 8px;border-radius:10px;background:var(--card2);border:1px solid var(--border);color:var(--text3);font-family:'Geist Mono',monospace;letter-spacing:0.1em;margin-left:8px;}
+.loader{display:none;width:14px;height:14px;border:1.5px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin 0.7s linear infinite;margin-left:6px;vertical-align:middle;}
+.loader.show{display:inline-block;}
+@keyframes spin{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+<div class="drag-handle"></div>
+
+<div class="login-card">
+  <div class="logo-wrap">
+    <div class="logo-icon"><img src="assets/icon.png" alt="Dominio"></div>
+    <div>
+      <div class="logo-brand">Dominio Corporativo <span class="mode-badge">ADMIN</span></div>
+      <div class="logo-sub">AUTOMATION PLATFORM</div>
+    </div>
+  </div>
+
+  <div class="title">Bienvenido</div>
+  <div class="sub">Ingresa con tu cuenta de equipo Dominio para acceder al panel corporativo.</div>
+
+  <div class="msg err" id="msg-err"></div>
+  <div class="msg ok" id="msg-ok"></div>
+
+  <form id="login-form" onsubmit="return doLogin(event)">
+    <div class="field">
+      <div class="field-label">EMAIL</div>
+      <input class="field-input" id="email" type="email" placeholder="tu@dominiosystem.com" required autofocus>
+    </div>
+    <div class="field">
+      <div class="field-label">PASSWORD</div>
+      <input class="field-input" id="password" type="password" placeholder="••••••••" required>
+    </div>
+    <button type="submit" class="btn" id="btn-login">Entrar<span class="loader" id="loader"></span></button>
+  </form>
+
+  <div class="footer">
+    <div class="footer-text">
+      ¿Olvidaste tu password? <a href="#" onclick="forgotPwd()">Recuperar</a>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://ywlyuuddqitduqtdttgo.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl3bHl1dWRkcWl0ZHVxdGR0dGdvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwNDg2MzgsImV4cCI6MjA4OTYyNDYzOH0.vpjRNcQ_v2Vo9M2oQsCq95mSLOCctRf6cO4sWzpNCF8';
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+function showMsg(kind, text){
+  const err = document.getElementById('msg-err');
+  const ok = document.getElementById('msg-ok');
+  err.classList.remove('show');
+  ok.classList.remove('show');
+  if(kind === 'err'){ err.textContent = text; err.classList.add('show'); }
+  else if(kind === 'ok'){ ok.textContent = text; ok.classList.add('show'); }
+}
+
+function setLoading(loading){
+  document.getElementById('btn-login').disabled = loading;
+  document.getElementById('loader').classList.toggle('show', loading);
+}
+
+async function doLogin(e){
+  e.preventDefault();
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  setLoading(true);
+  showMsg('clear','');
+  try {
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    if(error) throw error;
+
+    // Verificar que es team_member activo
+    const { data: tm, error: tmErr } = await sb
+      .from('team_members')
+      .select('role_id,status,full_name,user_roles(name,label,scopes)')
+      .eq('user_id', data.user.id)
+      .eq('status', 'active')
+      .maybeSingle();
+
+    if(tmErr || !tm){
+      await sb.auth.signOut();
+      throw new Error('Tu cuenta no tiene acceso al panel corporativo. Contacta al administrador.');
+    }
+
+    showMsg('ok', `Bienvenido, ${tm.full_name}. Cargando...`);
+
+    const session = data.session;
+    const role = tm.user_roles?.name || 'member';
+    const roleLabel = tm.user_roles?.label || 'MEMBER';
+
+    // Pasar session al main process para abrir dashboard
+    if(window.electronAPI?.loginSuccess){
+      window.electronAPI.loginSuccess({
+        accessToken: session.access_token,
+        refreshToken: session.refresh_token,
+        expiresAt: session.expires_at,
+        userId: data.user.id,
+        email: data.user.email,
+        fullName: tm.full_name,
+        role,
+        roleLabel
+      });
+    }
+  } catch(err){
+    setLoading(false);
+    showMsg('err', err.message || 'Error de login');
+  }
+}
+
+async function forgotPwd(){
+  const email = document.getElementById('email').value.trim();
+  if(!email){ showMsg('err','Ingresa tu email primero'); return; }
+  const { error } = await sb.auth.resetPasswordForEmail(email);
+  if(error) showMsg('err', error.message);
+  else showMsg('ok', 'Te enviamos un email con el link de recuperación.');
+}
+</script>
+</body>
+</html>

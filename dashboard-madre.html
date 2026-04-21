@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Dominio Corporativo</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#0c0c0c;--sidebar:#0f0f0f;--card:#141414;--card2:#1a1a1a;--card3:#1e1e1e;
+  --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.12);
+  --accent:#e8e8e8;
+  --success:#6fcf97;--success-s:rgba(111,207,151,0.10);
+  --warn:#f2c94c;--warn-s:rgba(242,201,76,0.10);
+  --danger:#eb5757;--danger-s:rgba(235,87,87,0.10);
+  --text:#f0f0f0;--text2:#aaaaaa;--text3:#777777;
+  --sidebar-w:228px;--sidebar-wc:56px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Geist',sans-serif;display:flex;height:100vh;overflow:hidden;font-size:13px;-webkit-font-smoothing:antialiased;-webkit-app-region:no-drag;}
+
+/* macOS traffic-light spacer */
+.drag-region{position:fixed;top:0;left:0;right:0;height:28px;-webkit-app-region:drag;z-index:1000;pointer-events:none;}
+
+/* SIDEBAR */
+.sidebar{width:var(--sidebar-w);min-width:var(--sidebar-w);background:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:28px 0 0;transition:width 220ms cubic-bezier(.4,0,.2,1),min-width 220ms cubic-bezier(.4,0,.2,1);position:relative;}
+body.collapsed .sidebar{width:var(--sidebar-wc);min-width:var(--sidebar-wc);}
+.logo-area{padding:0 16px 14px;border-bottom:1px solid var(--border);position:relative;height:68px;display:flex;align-items:center;}
+.logo-badge{display:flex;align-items:center;gap:10px;overflow:hidden;}
+.logo-icon{width:32px;height:32px;min-width:32px;border-radius:7px;display:flex;align-items:center;justify-content:center;background:var(--card2);overflow:hidden;border:1px solid var(--border2);}
+.logo-icon img{width:100%;height:100%;object-fit:cover;}
+.logo-text{font-size:13px;font-weight:600;color:var(--text);letter-spacing:-0.2px;white-space:nowrap;}
+.logo-sub{font-size:8px;color:var(--text3);letter-spacing:2px;font-family:'Geist Mono',monospace;margin-top:2px;white-space:nowrap;}
+.logo-txt-wrap{display:flex;flex-direction:column;transition:opacity 150ms;}
+body.collapsed .logo-txt-wrap{opacity:0;pointer-events:none;}
+
+.collapse-btn{position:absolute;right:-11px;top:24px;width:22px;height:22px;background:var(--card2);border:1px solid var(--border2);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:10px;color:var(--text3);z-index:100;transition:all 150ms;}
+.collapse-btn:hover{color:var(--text);border-color:var(--text3);background:var(--card3);}
+.collapse-btn svg{transition:transform 220ms;}
+body.collapsed .collapse-btn svg{transform:rotate(180deg);}
+
+.nav-scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:10px 8px;scrollbar-width:thin;}
+.nav-scroll::-webkit-scrollbar{width:4px;}
+.nav-scroll::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+
+.nav-group{margin-bottom:4px;}
+.group-head{display:flex;align-items:center;padding:8px 10px 6px;cursor:pointer;user-select:none;border-radius:5px;gap:6px;transition:background 120ms;}
+.group-head:hover{background:var(--card2);}
+.group-chev{width:10px;height:10px;display:flex;align-items:center;justify-content:center;color:var(--text3);transition:transform 180ms;flex-shrink:0;}
+.group-chev svg{width:8px;height:8px;}
+.group-label{font-size:9px;letter-spacing:1.8px;color:var(--text3);font-family:'Geist Mono',monospace;text-transform:uppercase;flex:1;white-space:nowrap;transition:opacity 150ms;}
+.group-count{font-size:9px;color:var(--text3);font-family:'Geist Mono',monospace;opacity:0.6;transition:opacity 150ms;}
+body.collapsed .group-label,body.collapsed .group-count,body.collapsed .group-chev{opacity:0;pointer-events:none;}
+body.collapsed .group-head{justify-content:center;padding:4px 0;}
+
+.nav-group.closed .group-chev{transform:rotate(-90deg);}
+.nav-group.closed .group-items{max-height:0;opacity:0;pointer-events:none;}
+.group-items{max-height:500px;overflow:hidden;transition:max-height 260ms cubic-bezier(.4,0,.2,1),opacity 180ms;padding-top:2px;}
+
+.nav-item{display:flex;align-items:center;gap:10px;padding:6px 10px 6px 24px;border-radius:5px;cursor:pointer;font-size:12px;color:var(--text2);font-weight:500;margin-bottom:1px;transition:background 120ms,color 120ms;position:relative;white-space:nowrap;}
+.nav-item:hover{background:var(--card2);color:var(--text);}
+.nav-item.active{background:var(--card2);color:var(--accent);}
+.nav-item.active::before{content:'';position:absolute;left:12px;top:50%;transform:translateY(-50%);width:3px;height:14px;background:var(--accent);border-radius:2px;}
+.nav-icon{width:14px;height:14px;display:flex;align-items:center;justify-content:center;color:currentColor;opacity:0.7;flex-shrink:0;}
+.nav-icon svg{width:13px;height:13px;}
+.nav-text{flex:1;transition:opacity 150ms;overflow:hidden;text-overflow:ellipsis;}
+.nav-badge{font-size:9px;padding:1px 6px;border-radius:10px;font-family:'Geist Mono',monospace;background:var(--card3);color:var(--text3);transition:opacity 150ms;}
+.nav-badge.alert{background:var(--danger-s);color:var(--danger);}
+.nav-badge.live{background:var(--success-s);color:var(--success);display:inline-flex;align-items:center;gap:3px;}
+.nav-badge.live::before{content:'';width:4px;height:4px;border-radius:50%;background:currentColor;animation:pulse 1.6s infinite;}
+
+body.collapsed .nav-item{justify-content:center;padding:8px 0;}
+body.collapsed .nav-item.active::before{left:4px;}
+body.collapsed .nav-text,body.collapsed .nav-badge{opacity:0;width:0;padding:0;pointer-events:none;overflow:hidden;}
+body.collapsed .nav-item:hover::after{content:attr(data-label);position:absolute;left:calc(100% + 8px);top:50%;transform:translateY(-50%);background:var(--card3);border:1px solid var(--border2);padding:5px 10px;border-radius:5px;font-size:11px;color:var(--text);white-space:nowrap;z-index:200;font-family:'Geist',sans-serif;box-shadow:0 4px 12px rgba(0,0,0,0.3);}
+body.collapsed .nav-group .group-items{max-height:500px!important;opacity:1!important;pointer-events:auto!important;}
+body.collapsed .nav-group:not(:last-child){border-bottom:1px solid var(--border);margin-bottom:6px;padding-bottom:6px;}
+
+.sidebar-footer{padding:12px 14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:9px;}
+.user-avatar{width:28px;height:28px;min-width:28px;border-radius:50%;background:var(--card2);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--text2);flex-shrink:0;}
+.user-info{display:flex;flex-direction:column;gap:1px;overflow:hidden;transition:opacity 150ms;}
+body.collapsed .user-info{opacity:0;width:0;}
+.user-name{font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;}
+.user-role{font-size:9px;color:var(--text3);font-family:'Geist Mono',monospace;white-space:nowrap;}
+
+/* WRAPPER */
+.wrapper{display:flex;flex-direction:column;flex:1;overflow:hidden;min-width:0;padding-top:28px;}
+.topbar{height:50px;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0;}
+.crumb{font-size:11px;color:var(--text3);display:flex;align-items:center;gap:6px;}
+.crumb .sep{color:var(--text3);font-size:9px;opacity:0.5;}
+.crumb .current{color:var(--text);font-weight:600;}
+.crumb .date{color:var(--text3);font-size:10px;margin-left:6px;font-family:'Geist Mono',monospace;}
+.top-right{margin-left:auto;display:flex;align-items:center;gap:8px;}
+.period-tabs{display:flex;gap:2px;background:var(--card);border:1px solid var(--border);border-radius:5px;padding:2px;}
+.period-tab{padding:3px 9px;font-size:10px;color:var(--text3);cursor:pointer;border-radius:3px;font-family:'Geist Mono',monospace;transition:all 120ms;}
+.period-tab:hover{color:var(--text2);}
+.period-tab.active{background:var(--card3);color:var(--text);}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-family:'Geist Mono',monospace;padding:4px 10px;border-radius:20px;letter-spacing:0.5px;}
+.pill-ok{background:var(--success-s);color:var(--success);border:1px solid rgba(111,207,151,0.2);}
+.pill-alert{background:var(--danger-s);color:var(--danger);border:1px solid rgba(235,87,87,0.2);}
+.pill-demo{background:var(--card2);color:var(--text3);border:1px solid var(--border2);}
+.pill-dot{width:5px;height:5px;border-radius:50%;background:currentColor;animation:pulse 1.6s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.35;}}
+
+/* CONTENT */
+.content{flex:1;overflow-y:auto;padding:20px;}
+.content::-webkit-scrollbar{width:6px;}
+.content::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+
+.page-head{margin-bottom:16px;display:flex;align-items:flex-end;gap:14px;}
+.page-title{font-size:20px;font-weight:600;color:var(--text);letter-spacing:-0.3px;}
+.page-sub{font-size:10px;color:var(--text3);font-family:'Geist Mono',monospace;letter-spacing:0.6px;margin-top:3px;}
+.page-actions{margin-left:auto;display:flex;gap:8px;}
+
+.sec-head{display:flex;align-items:center;gap:10px;margin:22px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--border);}
+.sec-label{font-size:9px;letter-spacing:2px;color:var(--text3);font-family:'Geist Mono',monospace;text-transform:uppercase;}
+.sec-title{font-size:13px;font-weight:600;color:var(--text);}
+.sec-meta{font-size:10px;color:var(--text3);font-family:'Geist Mono',monospace;margin-left:auto;}
+
+.btn{padding:6px 12px;font-size:11px;font-weight:500;border-radius:5px;border:1px solid var(--border2);background:var(--card2);color:var(--text);cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:inherit;}
+.btn:hover{background:var(--card3);}
+.btn.primary{background:var(--accent);color:#000;border-color:var(--accent);}
+.btn.primary:hover{background:#fff;}
+.btn.ghost{background:transparent;border-color:var(--border);color:var(--text2);}
+.btn.ghost:hover{color:var(--text);border-color:var(--border2);}
+
+.kpi-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px;}
+.kpi-strip.five{grid-template-columns:repeat(5,1fr);}
+.kpi-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 16px;transition:border-color 150ms;}
+.kpi-card:hover{border-color:var(--border2);}
+.kpi-label{font-size:8px;letter-spacing:1.5px;color:var(--text3);font-family:'Geist Mono',monospace;text-transform:uppercase;margin-bottom:6px;font-weight:600;}
+.kpi-value{font-size:24px;font-weight:600;letter-spacing:-1px;font-family:'Geist Mono',monospace;color:var(--text);line-height:1.1;}
+.kpi-trend{font-size:9px;color:var(--text3);margin-top:5px;font-family:'Geist Mono',monospace;}
+.kpi-trend.up{color:var(--success);}
+.kpi-trend.down{color:var(--danger);}
+
+.cc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.cc-card{background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden;transition:border-color 150ms;cursor:pointer;}
+.cc-card:hover{border-color:var(--border2);}
+.cc-head{padding:11px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.cc-tag{font-size:9px;letter-spacing:1.8px;color:var(--text3);font-family:'Geist Mono',monospace;text-transform:uppercase;}
+.cc-status{margin-left:auto;font-size:9px;padding:2px 7px;border-radius:10px;font-family:'Geist Mono',monospace;display:inline-flex;align-items:center;gap:5px;letter-spacing:0.5px;}
+.cc-status.ok{background:var(--success-s);color:var(--success);}
+.cc-status.warn{background:var(--warn-s);color:var(--warn);}
+.cc-status.err{background:var(--danger-s);color:var(--danger);}
+.cc-status .d{width:5px;height:5px;border-radius:50%;background:currentColor;}
+.cc-body{padding:14px;}
+.cc-main{display:flex;align-items:baseline;gap:10px;margin-bottom:12px;}
+.cc-value{font-size:26px;font-weight:600;letter-spacing:-0.5px;font-family:'Geist Mono',monospace;color:var(--text);line-height:1;}
+.cc-unit{font-size:11px;color:var(--text3);font-family:'Geist Mono',monospace;}
+.cc-delta{font-size:10px;font-family:'Geist Mono',monospace;color:var(--text3);margin-left:auto;}
+.cc-delta.up{color:var(--success);}
+.cc-delta.down{color:var(--danger);}
+.mini-bars{display:flex;align-items:flex-end;gap:2px;height:32px;margin:8px 0;}
+.mini-bar{flex:1;background:var(--card3);border-radius:1px;min-height:2px;}
+.cc-card:hover .mini-bar{background:var(--border2);}
+.cc-meta{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding-top:12px;border-top:1px dashed var(--border);}
+.cc-meta-label{font-size:8px;letter-spacing:1.5px;color:var(--text3);font-family:'Geist Mono',monospace;margin-bottom:2px;text-transform:uppercase;}
+.cc-meta-val{font-size:12px;font-family:'Geist Mono',monospace;color:var(--text);font-weight:500;}
+.cc-foot{padding:8px 14px;background:var(--card2);border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;font-size:9px;font-family:'Geist Mono',monospace;letter-spacing:1px;}
+.cc-foot a{color:var(--accent);text-decoration:none;}
+.cc-foot-meta{color:var(--text3);}
+
+.panel{background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+.panel-head{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.panel-title{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:1.2px;font-family:'Geist Mono',monospace;}
+.panel-sub{font-size:9px;color:var(--text3);margin-left:auto;font-family:'Geist Mono',monospace;}
+.panel-body{padding:14px;}
+
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+
+.tbl{width:100%;border-collapse:collapse;}
+.tbl th{text-align:left;font-size:9px;letter-spacing:1.5px;color:var(--text3);font-family:'Geist Mono',monospace;padding:9px 14px;border-bottom:1px solid var(--border);font-weight:500;text-transform:uppercase;}
+.tbl td{padding:10px 14px;border-bottom:1px solid var(--border);font-size:12px;}
+.tbl tr:last-child td{border-bottom:0;}
+.tbl tr:hover td{background:var(--card2);}
+.mono{font-family:'Geist Mono',monospace;}
+.num{font-family:'Geist Mono',monospace;color:var(--text);}
+.dim{color:var(--text3);}
+.ok{color:var(--success);}
+.err{color:var(--danger);}
+.warn{color:var(--warn);}
+
+.chip{font-size:9px;padding:2px 8px;border-radius:10px;font-family:'Geist Mono',monospace;display:inline-flex;align-items:center;gap:5px;}
+.chip-ok{background:var(--success-s);color:var(--success);}
+.chip-warn{background:var(--warn-s);color:var(--warn);}
+.chip-err{background:var(--danger-s);color:var(--danger);}
+.chip-off{background:var(--card2);color:var(--text3);}
+.chip-dot{width:5px;height:5px;border-radius:50%;background:currentColor;}
+.chip-live{background:var(--success-s);color:var(--success);}
+.chip-live .chip-dot{animation:pulse 1.6s infinite;}
+
+.icon-btn{width:26px;height:26px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--text3);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;}
+.icon-btn:hover{color:var(--text);background:var(--card2);}
+
+.view{display:none;}
+.view.active{display:block;}
+.chart-wrap{height:220px;padding:14px;}
+
+.feed-row{display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border-bottom:1px dashed var(--border);}
+.feed-row:last-child{border-bottom:0;}
+.feed-icon{width:22px;height:22px;border-radius:4px;background:var(--card2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--text2);flex-shrink:0;font-family:'Geist Mono',monospace;}
+.feed-icon.ok{background:var(--success-s);border-color:rgba(111,207,151,0.2);color:var(--success);}
+.feed-icon.err{background:var(--danger-s);border-color:rgba(235,87,87,0.2);color:var(--danger);}
+.feed-body{flex:1;font-size:11px;color:var(--text2);line-height:1.5;}
+.feed-body strong{color:var(--text);font-weight:600;}
+.feed-tag{font-size:8px;font-family:'Geist Mono',monospace;padding:1px 6px;border-radius:3px;letter-spacing:1.2px;margin-left:6px;background:var(--card3);color:var(--text3);text-transform:uppercase;border:1px solid var(--border);}
+.feed-time{font-size:9px;color:var(--text3);font-family:'Geist Mono',monospace;flex-shrink:0;}
+
+.int-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.int-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:12px;}
+.int-top{display:flex;align-items:center;gap:12px;}
+.int-logo{width:36px;height:36px;border-radius:8px;background:var(--card2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0;}
+.int-name{font-size:13px;font-weight:600;color:var(--text);}
+.int-sub{font-size:10px;color:var(--text3);font-family:'Geist Mono',monospace;margin-top:2px;}
+.int-meta-row{display:flex;justify-content:space-between;font-size:11px;padding:6px 0;border-top:1px dashed var(--border);}
+.int-meta-row:first-of-type{border-top:0;}
+.int-meta-row .l{color:var(--text3);}
+.int-meta-row .v{color:var(--text);font-family:'Geist Mono',monospace;}
+.int-actions{display:flex;gap:6px;margin-top:4px;}
+
+.client-row{display:grid;grid-template-columns:220px 1fr 90px 90px 90px 80px 100px;gap:10px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--border);font-size:12px;}
+.client-row:hover{background:var(--card2);}
+.client-row:last-child{border-bottom:0;}
+.client-name{display:flex;align-items:center;gap:10px;}
+.client-avatar{width:26px;height:26px;border-radius:5px;background:var(--card2);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--text2);}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--success);animation:pulse 1.2s infinite;margin-left:4px;}
+.heat-bars{display:flex;gap:2px;align-items:flex-end;height:16px;}
+.heat-bar{width:3px;background:var(--card3);border-radius:1px;}
+.heat-bar.active{background:var(--success);}
+
+.uptime-grid{display:grid;grid-template-columns:repeat(30,1fr);gap:2px;padding:14px;}
+.up-cell{height:24px;border-radius:2px;background:var(--success);opacity:0.75;}
+.up-cell.warn{background:var(--warn);}
+.up-cell.down{background:var(--danger);}
+
+.stripe-logo{background:#635bff;color:#fff;}
+.n8n-logo{background:#ea4b71;color:#fff;}
+.meta-logo{background:#0866ff;color:#fff;}
+.google-logo{background:#fff;color:#000;}
+.wa-logo{background:#25d366;color:#fff;}
+.supa-logo{background:#3ecf8e;color:#000;}
+
+/* TOAST */
+.toast{position:fixed;bottom:20px;right:20px;background:var(--card);border:1px solid var(--border2);border-radius:6px;padding:10px 14px;font-size:12px;z-index:9999;display:none;box-shadow:0 8px 24px rgba(0,0,0,0.4);}
+.toast.show{display:block;}
+.toast.success{border-left:3px solid var(--success);}
+.toast.warn{border-left:3px solid var(--warn);}
+.toast.err{border-left:3px solid var(--danger);}
+</style>
+</head>
+<body>
+
+<div class="drag-region"></div>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="logo-area">
+    <div class="logo-badge">
+      <div class="logo-icon"><img src="assets/icon.png" alt="Dominio"></div>
+      <div class="logo-txt-wrap">
+        <div class="logo-text">Dominio</div>
+        <div class="logo-sub">CORPORATIVO</div>
+      </div>
+    </div>
+  </div>
+  <div class="collapse-btn" onclick="toggleSidebar()"><svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M5 1L2 4l3 3"/></svg></div>
+
+  <div class="nav-scroll">
+
+    <div class="nav-group" data-group="home">
+      <div class="group-head" onclick="toggleGroup('home')"><div class="group-chev"><svg viewBox="0 0 8 8" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3l2 2 2-2"/></svg></div><div class="group-label">Home</div></div>
+      <div class="group-items">
+        <div class="nav-item active" data-view="command" data-label="Command Center" onclick="go('command')"><span class="nav-icon"><svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="1.5" y="1.5" width="4" height="4" rx="1"/><rect x="7.5" y="1.5" width="4" height="4" rx="1"/><rect x="1.5" y="7.5" width="4" height="4" rx="1"/><rect x="7.5" y="7.5" width="4" height="4" rx="1"/></svg></span><span class="nav-text">Command Center</span><span class="nav-badge live" id="live-pill">LIVE</span></div>
+      </div>
+    </div>
+
+    <div class="nav-group" data-group="operacion">
+      <div class="group-head" onclick="toggleGroup('operacion')"><div class="group-chev"><svg viewBox="0 0 8 8" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3l2 2 2-2"/></svg></div><div class="group-label">Operacion</div><div class="group-count">3</div></div>
+      <div class="group-items">
+        <div class="nav-item" data-view="overview" data-label="Overview Global" onclick="go('overview')"><span class="nav-icon"><svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="6.5" cy="6.5" r="5"/><path d="M1.5 6.5h10M6.5 1.5c2 1.5 2 8.5 0 10M6.5 1.5c-2 1.5-2 8.5 0 10"/></svg></span><span class="nav-text">Overview Global</span></div>
+        <div class="nav-item" data-view="funnel" data-label="Funnel Maestro" onclick="go('funnel')"><span class="nav-icon"><svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M1.5 2h10l-3 4v5l-4-1V6z"/></svg></span><span class="nav-text">Funnel Maestro</span></div>
+        <div class="nav-item" data-view="leads" data-label="Lead Sources" onclick="go('leads')"><span class="nav-icon"><svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="6.5" cy="4.5" r="2.5"/><path d="M2 11.5c0-2 2-3.5 4.5-3.5s4.5 1.5 4.5 3.5"/></svg></span><span class="nav-text">Lead Sources</span></div>
+      </div>
+    </div>
+
+    <div class="nav-group" data-group="negocio">
+      <div class="group-head" onclick="toggleGroup('negocio')"><div class="group-chev"><svg viewBox="0 0 8 8" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3l2 2 2-2"/></svg></div><div class="group-label">Negocio</div><div class="group-count">5</div></div>
+      <div class="group-items">
+        <div class="nav-item" data-view="revenue" data-label="Revenue & MRR" onclick="go('revenue')"><span class="nav-icon"><svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M6.5 1v11M9 3.5h-3a1.5 1.5 0 000 3h1.5a1.5 1.5 0 010 3h-3.5"/></svg></span><span class="nav-text">Revenue & MRR</span></div>
+        <div class="nav-item" data-view="invoices" data-label="Invoices" onclick="go('invoices')"><span class="nav-icon"><svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M3 1.5h7v10l-1.5-1-1 1-1-1-1 1-1-1-1.5 1z"/><path d="M5 5h3M5 7h3"/></svg></span><span class="nav-text">Invoices</span><span class="nav-badge">—</span></div>
+        <div class="nav-item" data-view="subs" data-label="Subscriptions" onclick="go('subs')"><span class="nav-icon"><svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M2 6.5a4.5 4.5 0 018-3M11 6.5a4.5 4.5 0 01-8 3M9 2v2.5h2.5M4 11V8.5H1.5"/></svg></span><span class="nav-text">Subscriptions</span></div>
+        <div class="nav-item" data-view="payouts" data-label="Payouts" onclick="go('payouts')"><span class="nav-icon"><svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="1.5" y="3" width="10" height="7" rx="1"/><circle cx="6.5" cy="6.5" r="1.5"/></svg></span><span class="nav-text">Payouts</span></div>
+        <div class="nav-item" data-view="dunning" data-label="Dunning" onclick="go('dunning')"><span class="nav-icon"><svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M6.5 1.5l5.5 9.5h-11z"/><path d="M6.5 5.5v2.5M6.5 9.5v.5"/></svg></span><span class="nav-text">Dunning</span></div>
+      </div>
+    </div>
+
+    <div class="nav-group" data-group="plataforma">
+      <div class="group-head" onclick="toggleGroup('plataforma')"><div class="group-chev"><svg viewBox="0 0 8 8" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3l2 2 2-2"/></svg></div><div class="group-label">Plataforma</div><div class="group-count">3</div></div>
+      <div class="group-items">
+        <div class="nav-item" data-view="integrations" data-label="Integraciones" onclick="go('integrations')"><span class="nav-icon"><svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="3.5" cy="3.5" r="2"/><circle cx="9.5" cy="9.5" r="2"/><path d="M5 5l3 3"/></svg></span><span class="nav-text">Integraciones</span></div>
+        <div class="nav-item" data-view="keys" data-label="API & Keys" onclick="go('keys')"><span class="nav-icon"><svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="4" cy="6.5" r="2.5"/><path d="M6.5 6.5h5v2M9.5 6.5v2"/></svg></span><span class="nav-text">API & Keys</span></div>
+        <div class="nav-item" data-view="webhooks" data-label="Webhooks" onclick="go('webhooks')"><span class="nav-icon"><svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="6.5" cy="4" r="2"/><path d="M4.5 6l-2 4M8.5 6l2 4M5 11h3.5"/></svg></span><span class="nav-text">Webhooks</span></div>
+      </div>
+    </div>
+
+    <div class="nav-group closed" data-group="organizacion">
+      <div class="group-head" onclick="toggleGroup('organizacion')"><div class="group-chev"><svg viewBox="0 0 8 8" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3l2 2 2-2"/></svg></div><div class="group-label">Organización</div><div class="group-count">3</div></div>
+      <div class="group-items">
+        <div class="nav-item" data-view="users" data-label="Usuarios" onclick="go('users')"><span class="nav-icon"><svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="4.5" cy="4" r="2"/><path d="M1.5 11c0-2 1.5-3 3-3s3 1 3 3"/><circle cx="9" cy="5" r="1.5"/><path d="M8 11c0-1.5 1-2.5 2-2.5s2 1 2 2.5"/></svg></span><span class="nav-text">Usuarios</span></div>
+        <div class="nav-item" data-view="roles" data-label="Roles & Permisos" onclick="go('roles')"><span class="nav-icon"><svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M2 6.5l4-5 5 5-5 5z"/><circle cx="6.5" cy="6.5" r="1.3"/></svg></span><span class="nav-text">Roles & Permisos</span></div>
+        <div class="nav-item" data-view="clients" data-label="Clientes" onclick="go('clients')"><span class="nav-icon"><svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M2 3h9v8h-9z"/><path d="M4 5h5M4 7h5M4 9h3"/></svg></span><span class="nav-text">Clientes</span><span class="nav-badge" id="clients-count-badge">—</span></div>
+      </div>
+    </div>
+
+    <div class="nav-group closed" data-group="sistema">
+      <div class="group-head" onclick="toggleGroup('sistema')"><div class="group-chev"><svg viewBox="0 0 8 8" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3l2 2 2-2"/></svg></div><div class="group-label">Sistema</div><div class="group-count">3</div></div>
+      <div class="group-items">
+        <div class="nav-item" data-view="status" data-label="System Status" onclick="go('status')"><span class="nav-icon"><svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M1.5 7h2l2-4 2 7 2-4h2"/></svg></span><span class="nav-text">System Status</span></div>
+        <div class="nav-item" data-view="incidents" data-label="Incidencias" onclick="go('incidents')"><span class="nav-icon"><svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="6.5" cy="6.5" r="5"/><path d="M6.5 4v3M6.5 9v.5"/></svg></span><span class="nav-text">Incidencias</span></div>
+        <div class="nav-item" data-view="audit" data-label="Auditoría" onclick="go('audit')"><span class="nav-icon"><svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M3 1.5h5l3 3v7h-8z"/><path d="M8 1.5v3h3M5 8h3M5 10h3"/></svg></span><span class="nav-text">Auditoría</span></div>
+      </div>
+    </div>
+
+    <div class="nav-group closed" data-group="soporte">
+      <div class="group-head" onclick="toggleGroup('soporte')"><div class="group-chev"><svg viewBox="0 0 8 8" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3l2 2 2-2"/></svg></div><div class="group-label">Soporte</div><div class="group-count">2</div></div>
+      <div class="group-items">
+        <div class="nav-item" data-view="docs" data-label="Documentación" onclick="go('docs')"><span class="nav-icon"><svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M3 1.5h7v10h-7z"/><path d="M5 4h3M5 6.5h3M5 9h2"/></svg></span><span class="nav-text">Documentación</span></div>
+        <div class="nav-item" data-view="tickets" data-label="Tickets" onclick="go('tickets')"><span class="nav-icon"><svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M1.5 3.5v2a1.5 1.5 0 010 3v2h10v-2a1.5 1.5 0 010-3v-2z"/></svg></span><span class="nav-text">Tickets</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="user-avatar">W</div>
+    <div class="user-info"><div class="user-name">Willian</div><div class="user-role">OWNER</div></div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="wrapper">
+  <div class="topbar">
+    <div class="crumb"><span>Dominio Corporativo</span><span class="sep">›</span><span class="current" id="crumb-current">Command Center</span><span class="date" id="crumb-date">— Abril 2026</span></div>
+    <div class="top-right">
+      <div class="period-tabs"><div class="period-tab">7D</div><div class="period-tab active">30D</div><div class="period-tab">90D</div><div class="period-tab">YTD</div></div>
+      <div class="pill pill-demo" id="mode-pill">DEMO</div>
+      <div class="pill pill-ok"><span class="pill-dot"></span>SISTEMA ACTIVO</div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- COMMAND CENTER -->
+    <div class="view active" data-view="command">
+      <div class="page-head"><div><div class="page-title">Command Center</div><div class="page-sub">VISIÓN INTEGRADA · 6 DOMINIOS · CICLO 30D</div></div></div>
+      <div class="kpi-strip">
+        <div class="kpi-card"><div class="kpi-label">REVENUE NETO</div><div class="kpi-value" id="kpi-revenue">$0</div><div class="kpi-trend up">↑ MRR</div></div>
+        <div class="kpi-card"><div class="kpi-label">MRR</div><div class="kpi-value" id="kpi-mrr">$0</div><div class="kpi-trend up">consolidado</div></div>
+        <div class="kpi-card"><div class="kpi-label">CLIENTES ACTIVOS</div><div class="kpi-value" id="kpi-clients">0</div><div class="kpi-trend up" id="kpi-clients-trend">—</div></div>
+        <div class="kpi-card"><div class="kpi-label">CHURN RATE</div><div class="kpi-value" id="kpi-churn">0.0%</div><div class="kpi-trend" id="kpi-churn-trend">estable</div></div>
+      </div>
+      <div class="sec-head"><span class="sec-label">DOMINIOS</span><span class="sec-title">Pulso por área</span><span class="sec-meta">6 activos · click para entrar</span></div>
+      <div class="cc-grid">
+        <div class="cc-card" onclick="go('overview')"><div class="cc-head"><span class="cc-tag">OPERACION · ANALYTICS</span><div class="cc-status ok"><span class="d"></span>OK</div></div><div class="cc-body"><div class="cc-main"><div class="cc-value" id="cc-leads">0</div><div class="cc-unit">leads 30D</div></div><div class="mini-bars" data-bars="3,4,3,5,4,6,5,7,6,8,7,9,8,10"></div><div class="cc-meta"><div><div class="cc-meta-label">CITAS</div><div class="cc-meta-val" id="cc-citas">0</div></div><div><div class="cc-meta-label">CONV.</div><div class="cc-meta-val" id="cc-conv">0%</div></div></div></div><div class="cc-foot"><a>VER OVERVIEW →</a></div></div>
+        <div class="cc-card" onclick="go('revenue')"><div class="cc-head"><span class="cc-tag">NEGOCIO · FINANCE</span><div class="cc-status ok"><span class="d"></span>LIVE</div></div><div class="cc-body"><div class="cc-main"><div class="cc-value" id="cc-revenue">$0</div><div class="cc-unit">MRR</div></div><div class="mini-bars" data-bars="4,5,4,6,5,7,8,7,9,8,10,9,11,10"></div><div class="cc-meta"><div><div class="cc-meta-label">ARR</div><div class="cc-meta-val" id="cc-arr">$0</div></div><div><div class="cc-meta-label">RPC</div><div class="cc-meta-val" id="cc-rpc">$0</div></div></div></div><div class="cc-foot"><a>VER REVENUE →</a></div></div>
+        <div class="cc-card" onclick="go('integrations')"><div class="cc-head"><span class="cc-tag">PLATAFORMA · API</span><div class="cc-status warn"><span class="d"></span>CONFIG</div></div><div class="cc-body"><div class="cc-main"><div class="cc-value">6</div><div class="cc-unit">integraciones</div></div><div class="mini-bars" data-bars="5,6,6,7,7,8,7,9,8,8,9,10,9,10"></div><div class="cc-meta"><div><div class="cc-meta-label">STRIPE</div><div class="cc-meta-val">TEST</div></div><div><div class="cc-meta-label">N8N</div><div class="cc-meta-val ok">LIVE</div></div></div></div><div class="cc-foot"><a>VER INTEGRACIONES →</a></div></div>
+        <div class="cc-card" onclick="go('users')"><div class="cc-head"><span class="cc-tag">ORGANIZACIÓN · TEAM</span><div class="cc-status ok"><span class="d"></span>OK</div></div><div class="cc-body"><div class="cc-main"><div class="cc-value">1</div><div class="cc-unit">miembro</div></div><div class="mini-bars" data-bars="6,6,7,7,7,8,8,8,9,9,10,10,11,14"></div><div class="cc-meta"><div><div class="cc-meta-label">ROL</div><div class="cc-meta-val">OWNER</div></div><div><div class="cc-meta-label">ROLES</div><div class="cc-meta-val">4</div></div></div></div><div class="cc-foot"><a>VER EQUIPO →</a></div></div>
+        <div class="cc-card" onclick="go('status')"><div class="cc-head"><span class="cc-tag">SISTEMA · MONITOR</span><div class="cc-status ok"><span class="d"></span>OK</div></div><div class="cc-body"><div class="cc-main"><div class="cc-value">99.9%</div><div class="cc-unit">uptime</div></div><div class="mini-bars" data-bars="10,10,10,9,10,10,8,10,10,10,10,10,10,10"></div><div class="cc-meta"><div><div class="cc-meta-label">INCID.</div><div class="cc-meta-val">0</div></div><div><div class="cc-meta-label">AUDIT</div><div class="cc-meta-val">—</div></div></div></div><div class="cc-foot"><a>VER MONITOR →</a></div></div>
+        <div class="cc-card" onclick="go('tickets')"><div class="cc-head"><span class="cc-tag">SOPORTE · DOCS</span><div class="cc-status ok"><span class="d"></span>OK</div></div><div class="cc-body"><div class="cc-main"><div class="cc-value">0</div><div class="cc-unit">tickets</div></div><div class="mini-bars" data-bars="5,4,6,5,3,4,5,6,4,5,4,3,4,4"></div><div class="cc-meta"><div><div class="cc-meta-label">SLA</div><div class="cc-meta-val">—</div></div><div><div class="cc-meta-label">DOCS</div><div class="cc-meta-val">—</div></div></div></div><div class="cc-foot"><a>VER TICKETS →</a></div></div>
+      </div>
+
+      <div class="sec-head"><span class="sec-label">ACTIVIDAD</span><span class="sec-title">Feed global</span><span class="sec-meta" id="feed-meta">cargando...</span></div>
+      <div class="panel" id="feed-panel">
+        <div class="feed-row"><div class="feed-icon">·</div><div class="feed-body dim">Esperando conexión con Supabase...</div><div class="feed-time">—</div></div>
+      </div>
+    </div>
+
+    <!-- OVERVIEW -->
+    <div class="view" data-view="overview">
+      <div class="page-head"><div><div class="page-title">Overview Global</div><div class="page-sub">OPERACION · VISTA CONSOLIDADA</div></div><div class="page-actions"><button class="btn ghost">⟱ Exportar</button></div></div>
+      <div class="kpi-strip five">
+        <div class="kpi-card"><div class="kpi-label">LEADS 30D</div><div class="kpi-value" id="ov-leads">0</div><div class="kpi-trend">total</div></div>
+        <div class="kpi-card"><div class="kpi-label">CITAS AGENDADAS</div><div class="kpi-value" id="ov-citas">0</div><div class="kpi-trend">confirmadas</div></div>
+        <div class="kpi-card"><div class="kpi-label">CONV. LEAD→CITA</div><div class="kpi-value" id="ov-conv">0%</div><div class="kpi-trend">promedio</div></div>
+        <div class="kpi-card"><div class="kpi-label">CLIENTES</div><div class="kpi-value" id="ov-clients">0</div><div class="kpi-trend">activos</div></div>
+        <div class="kpi-card"><div class="kpi-label">NPS</div><div class="kpi-value" id="ov-nps">—</div><div class="kpi-trend">último</div></div>
+      </div>
+      <div class="sec-head"><span class="sec-label">TENDENCIA</span><span class="sec-title">Evolución ingresos</span></div>
+      <div class="panel"><div class="chart-wrap"><canvas id="chart-overview"></canvas></div></div>
+    </div>
+
+    <!-- REVENUE -->
+    <div class="view" data-view="revenue">
+      <div class="page-head"><div><div class="page-title">Revenue & MRR</div><div class="page-sub">NEGOCIO · SYNC SUPABASE · STRIPE PENDING</div></div><div class="page-actions"><div class="pill pill-demo" id="stripe-pill"><span class="pill-dot"></span>STRIPE PENDIENTE</div></div></div>
+      <div class="kpi-strip">
+        <div class="kpi-card"><div class="kpi-label">MRR</div><div class="kpi-value" id="rev-mrr">$0</div><div class="kpi-trend up">actual</div></div>
+        <div class="kpi-card"><div class="kpi-label">ARR PROYECTADO</div><div class="kpi-value" id="rev-arr">$0</div><div class="kpi-trend up">12× MRR</div></div>
+        <div class="kpi-card"><div class="kpi-label">RPC PROMEDIO</div><div class="kpi-value" id="rev-rpc">$0</div><div class="kpi-trend">por cliente</div></div>
+        <div class="kpi-card"><div class="kpi-label">CLIENTES PAG.</div><div class="kpi-value" id="rev-clients">0</div><div class="kpi-trend">activos</div></div>
+      </div>
+      <div class="panel" style="margin-top:12px;"><div class="panel-head"><div class="panel-title">Ingresos históricos</div><div class="panel-sub">últimos 6 meses</div></div><div class="chart-wrap"><canvas id="chart-mrr"></canvas></div></div>
+    </div>
+
+    <!-- INVOICES (Fase 2 · render dinámico) -->
+    <div class="view" data-view="invoices"></div>
+
+    <!-- INTEGRATIONS -->
+    <div class="view" data-view="integrations">
+      <div class="page-head"><div><div class="page-title">Integraciones</div><div class="page-sub">PLATAFORMA · SERVICIOS CONECTADOS</div></div><div class="page-actions"><button class="btn primary">+ Conectar servicio</button></div></div>
+      <div class="int-grid">
+        <div class="int-card">
+          <div class="int-top"><div class="int-logo stripe-logo">S</div><div style="flex:1;"><div class="int-name">Stripe</div><div class="int-sub">PAYMENTS · NO CONECTADO</div></div><span class="chip chip-off"><span class="chip-dot"></span>OFF</span></div>
+          <div>
+            <div class="int-meta-row"><span class="l">Estado</span><span class="v dim">pendiente LLC Wyoming</span></div>
+            <div class="int-meta-row"><span class="l">Test mode</span><span class="v">disponible sin LLC</span></div>
+            <div class="int-meta-row"><span class="l">Webhook endpoint</span><span class="v dim">api.dominiosystem.com/webhooks/stripe</span></div>
+          </div>
+          <div class="int-actions"><button class="btn primary" style="flex:1;justify-content:center;">Conectar Test Mode</button></div>
+        </div>
+
+        <div class="int-card">
+          <div class="int-top"><div class="int-logo n8n-logo">n8</div><div style="flex:1;"><div class="int-name">n8n (Railway)</div><div class="int-sub">WORKFLOWS · SELF-HOSTED</div></div><span class="chip chip-ok"><span class="chip-dot"></span>LIVE</span></div>
+          <div>
+            <div class="int-meta-row"><span class="l">URL</span><span class="v dim">n8n-prod.up.railway.app</span></div>
+            <div class="int-meta-row"><span class="l">Workflows</span><span class="v">por configurar</span></div>
+            <div class="int-meta-row"><span class="l">Webhook</span><span class="v dim">pendiente</span></div>
+          </div>
+          <div class="int-actions"><button class="btn ghost" style="flex:1;justify-content:center;">Abrir UI</button><button class="btn ghost" style="flex:1;justify-content:center;">Workflows</button></div>
+        </div>
+
+        <div class="int-card">
+          <div class="int-top"><div class="int-logo supa-logo">S</div><div style="flex:1;"><div class="int-name">Supabase</div><div class="int-sub">DATABASE · REALTIME</div></div><span class="chip" id="supa-chip"><span class="chip-dot"></span>CONECTANDO</span></div>
+          <div>
+            <div class="int-meta-row"><span class="l">Project</span><span class="v dim">ywlyuuddqitduqtd</span></div>
+            <div class="int-meta-row"><span class="l">Clientes</span><span class="v" id="supa-clients-count">—</span></div>
+            <div class="int-meta-row"><span class="l">Realtime</span><span class="v dim">por activar</span></div>
+          </div>
+          <div class="int-actions"><button class="btn ghost" style="flex:1;justify-content:center;">Schema</button><button class="btn ghost" style="flex:1;justify-content:center;">RLS</button></div>
+        </div>
+
+        <div class="int-card">
+          <div class="int-top"><div class="int-logo meta-logo">f</div><div style="flex:1;"><div class="int-name">Meta Business</div><div class="int-sub">ADS · LEAD SYNC</div></div><span class="chip chip-off"><span class="chip-dot"></span>OFF</span></div>
+          <div>
+            <div class="int-meta-row"><span class="l">Estado</span><span class="v dim">por configurar</span></div>
+            <div class="int-meta-row"><span class="l">Cuentas</span><span class="v">0</span></div>
+          </div>
+          <div class="int-actions"><button class="btn primary" style="flex:1;justify-content:center;">Conectar</button></div>
+        </div>
+
+        <div class="int-card">
+          <div class="int-top"><div class="int-logo google-logo">G</div><div style="flex:1;"><div class="int-name">Google Ads</div><div class="int-sub">ADS · ANALYTICS</div></div><span class="chip chip-off"><span class="chip-dot"></span>OFF</span></div>
+          <div>
+            <div class="int-meta-row"><span class="l">Estado</span><span class="v dim">por configurar</span></div>
+            <div class="int-meta-row"><span class="l">MCC</span><span class="v dim">—</span></div>
+          </div>
+          <div class="int-actions"><button class="btn primary" style="flex:1;justify-content:center;">Conectar</button></div>
+        </div>
+
+        <div class="int-card">
+          <div class="int-top"><div class="int-logo wa-logo">W</div><div style="flex:1;"><div class="int-name">WhatsApp Cloud</div><div class="int-sub">MESSAGING</div></div><span class="chip chip-off"><span class="chip-dot"></span>OFF</span></div>
+          <div>
+            <div class="int-meta-row"><span class="l">Estado</span><span class="v dim">por configurar</span></div>
+            <div class="int-meta-row"><span class="l">Números</span><span class="v">0</span></div>
+          </div>
+          <div class="int-actions"><button class="btn primary" style="flex:1;justify-content:center;">Conectar</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CLIENTS -->
+    <div class="view" data-view="clients">
+      <div class="page-head"><div><div class="page-title">Clientes</div><div class="page-sub">ORGANIZACIÓN · DASHBOARDS CLIENTE · REALTIME</div></div><div class="page-actions"><button class="btn primary">+ Nuevo cliente</button></div></div>
+      <div class="kpi-strip">
+        <div class="kpi-card"><div class="kpi-label">CLIENTES ACTIVOS</div><div class="kpi-value" id="cl-active">0</div><div class="kpi-trend up">total</div></div>
+        <div class="kpi-card"><div class="kpi-label">MRR CONSOLIDADO</div><div class="kpi-value" id="cl-mrr">$0</div><div class="kpi-trend">suma tickets</div></div>
+        <div class="kpi-card"><div class="kpi-label">TICKET PROM.</div><div class="kpi-value" id="cl-avg">$0</div><div class="kpi-trend">por cliente</div></div>
+        <div class="kpi-card"><div class="kpi-label">ESTADO REALTIME</div><div class="kpi-value" style="font-size:14px;" id="cl-realtime">OFFLINE</div><div class="kpi-trend">supabase</div></div>
+      </div>
+      <div class="panel" style="margin-top:12px;">
+        <div class="panel-head"><div class="panel-title">Clientes activos</div><div class="panel-sub" id="cl-count">0 clientes</div></div>
+        <div id="cl-list"></div>
+      </div>
+    </div>
+
+    <!-- Fase 3 · render dinámico -->
+    <div class="view" data-view="funnel"></div>
+    <div class="view" data-view="leads"></div>
+    <!-- Fase 2 · render dinámico -->
+    <div class="view" data-view="subs"></div>
+    <div class="view" data-view="payouts"></div>
+    <div class="view" data-view="dunning"></div>
+    <div class="view" data-view="keys"></div>
+    <div class="view" data-view="webhooks"></div>
+    <div class="view" data-view="users"></div>
+    <div class="view" data-view="roles"></div>
+    <div class="view" data-view="status"><div class="page-head"><div><div class="page-title">System Status</div><div class="page-sub" id="status-sub">SISTEMA · UPTIME</div></div></div><div class="grid grid-3" id="status-cards" style="margin-bottom:16px"></div><div class="panel"><div class="panel-head"><div class="panel-title">Últimos 50 checks</div></div><table class="tbl" id="status-table"><thead><tr><th>Servicio</th><th>Status</th><th>Latencia</th><th>HTTP</th><th>Timestamp</th></tr></thead><tbody><tr><td colspan="5" class="dim" style="text-align:center;padding:24px">Cargando…</td></tr></tbody></table></div></div>
+    <div class="view" data-view="incidents"><div class="page-head"><div><div class="page-title">Incidencias</div><div class="page-sub" id="incidents-sub">SISTEMA · — ACTIVAS</div></div></div><div class="panel"><div class="panel-head"><div class="panel-title">Historial (últimas 50)</div></div><table class="tbl" id="incidents-table"><thead><tr><th>Título</th><th>Severidad</th><th>Estado</th><th>Servicios</th><th>Detectada</th><th>Resuelta</th></tr></thead><tbody><tr><td colspan="6" class="dim" style="text-align:center;padding:24px">Cargando…</td></tr></tbody></table></div></div>
+    <div class="view" data-view="audit"><div class="page-head"><div><div class="page-title">Auditoría</div><div class="page-sub" id="audit-sub">SISTEMA · LOG INMUTABLE</div></div></div><div class="panel"><div class="panel-head"><div class="panel-title">Últimas 50 acciones</div></div><table class="tbl" id="audit-table"><thead><tr><th>Acción</th><th>Entidad</th><th>Resultado</th><th>Actor</th><th>Timestamp</th></tr></thead><tbody><tr><td colspan="5" class="dim" style="text-align:center;padding:24px">Cargando…</td></tr></tbody></table></div></div>
+    <div class="view" data-view="docs"></div>
+    <div class="view" data-view="tickets"></div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Fase 1 modules (deben cargarse ANTES del script principal) -->
+<script src="assets/js/rbac.js"></script>
+<script src="assets/js/payments.js"></script>
+<script src="assets/js/users-view.js"></script>
+<script src="assets/js/roles-view.js"></script>
+<!-- Fase 2 modules (Billing: Invoices, Subs, Payouts, Dunning) -->
+<script src="assets/js/invoices-view.js"></script>
+<script src="assets/js/subs-view.js"></script>
+<script src="assets/js/payouts-view.js"></script>
+<script src="assets/js/dunning-view.js"></script>
+<!-- Fase 3 modules (Plataforma: Funnel, Leads, Keys, Webhooks, Tickets, Docs) -->
+<script src="assets/js/funnel-view.js"></script>
+<script src="assets/js/leads-view.js"></script>
+<script src="assets/js/api-keys-view.js"></script>
+<script src="assets/js/webhooks-view.js"></script>
+<script src="assets/js/tickets-view.js"></script>
+<script src="assets/js/docs-view.js"></script>
+<!-- Fase 4: polish (Command Center real, sparklines, heat-bars, realtime, cache) -->
+<script src="assets/js/madre-polish.js"></script>
+
+<script>
+// ============================================
+// SUPABASE CONFIG (con JWT del team_member logueado)
+// ============================================
+const SUPABASE_URL = 'https://ywlyuuddqitduqtdttgo.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl3bHl1dWRkcWl0ZHVxdGR0dGdvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwNDg2MzgsImV4cCI6MjA4OTYyNDYzOH0.vpjRNcQ_v2Vo9M2oQsCq95mSLOCctRf6cO4sWzpNCF8';
+
+// Cargar sesión desde main process (pasada por login window o auto-loaded on startup)
+let SESSION = null;
+let USER = null;
+
+function setSessionState(sess){
+  SESSION = sess;
+  USER = sess ? { id: sess.userId, email: sess.email, fullName: sess.fullName, role: sess.role, roleLabel: sess.roleLabel } : null;
+}
+
+async function loadSession(){
+  if(window.electronAPI?.getSession){
+    const sess = await window.electronAPI.getSession();
+    setSessionState(sess);
+  }
+  if(!SESSION){
+    console.warn('Sin sesión. Redirigiendo a login...');
+    window.electronAPI?.logout?.();
+    return;
+  }
+  // Suscribirse a refresh automático del main process (ocurre cada ~55 min)
+  if(window.electronAPI?.onSessionRefreshed){
+    window.electronAPI.onSessionRefreshed((sess) => {
+      console.log('Session refreshed automatically by main process');
+      setSessionState(sess);
+    });
+  }
+}
+
+function sbHeaders(extraPreference){
+  const token = SESSION?.accessToken || SUPABASE_ANON;
+  const h = { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+  if(extraPreference) h['Prefer'] = extraPreference;
+  return h;
+}
+
+// Wrapper que retry una vez con refresh si recibe 401 (access token expired)
+async function sbFetch(url, options = {}){
+  let r = await fetch(url, options);
+  if(r.status === 401 && window.electronAPI?.refreshSession){
+    try {
+      const fresh = await window.electronAPI.refreshSession();
+      setSessionState(fresh);
+      // Reintentar con nuevo token
+      const newOptions = { ...options, headers: { ...(options.headers||{}), 'Authorization': `Bearer ${fresh.accessToken}` } };
+      r = await fetch(url, newOptions);
+    } catch(e){
+      console.warn('Refresh failed on 401; forzando logout:', e.message);
+      window.electronAPI?.logout?.();
+      throw new Error('Session expired');
+    }
+  }
+  return r;
+}
+
+async function sbGet(table, params='') {
+  const r = await sbFetch(`${SUPABASE_URL}/rest/v1/${table}?${params}`, { headers: sbHeaders() });
+  if (!r.ok) throw new Error(`${table}: ${r.status}`);
+  return r.json();
+}
+async function sbInsert(table, payload) {
+  const r = await sbFetch(`${SUPABASE_URL}/rest/v1/${table}`, { method:'POST', headers: sbHeaders('return=representation'), body: JSON.stringify(payload) });
+  if (!r.ok) { const e = await r.json().catch(()=>({})); throw new Error(e.message || r.status); }
+  return r.json();
+}
+async function sbPatch(table, id, payload) {
+  const r = await sbFetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, { method:'PATCH', headers: sbHeaders('return=representation'), body: JSON.stringify(payload) });
+  if (!r.ok) throw new Error(`patch ${table}: ${r.status}`);
+  return r.json();
+}
+
+// ── Expose to module scripts (rbac.js, users-view.js, roles-view.js, payments.js) ──
+window.SUPABASE_URL = SUPABASE_URL;
+window.SUPABASE_ANON = SUPABASE_ANON;
+window.sbHeaders = sbHeaders;
+window.sbGet = sbGet;
+window.sbInsert = sbInsert;
+window.sbPatch = sbPatch;
+
+let IS_LIVE = false;
+let CLIENTS_LIVE = [];
+
+function toast(msg, kind='success'){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.className=`toast show ${kind}`;
+  setTimeout(()=>el.classList.remove('show'),3000);
+}
+window.toast = toast;
+
+// Mini bars
+function renderBars(){
+  document.querySelectorAll('.mini-bars[data-bars]').forEach(el=>{
+    const vals=el.dataset.bars.split(',').map(Number);
+    const max=Math.max(...vals);
+    el.innerHTML=vals.map(v=>`<div class="mini-bar" style="height:${(v/max)*100}%"></div>`).join('');
+  });
+}
+
+// Sidebar
+function toggleSidebar(){document.body.classList.toggle('collapsed');try{localStorage.setItem('sb-collapsed',document.body.classList.contains('collapsed'));}catch(e){}}
+function toggleGroup(n){if(document.body.classList.contains('collapsed'))return;const g=document.querySelector(`.nav-group[data-group="${n}"]`);g.classList.toggle('closed');try{localStorage.setItem('group-'+n,g.classList.contains('closed'));}catch(e){}}
+
+// Restore sidebar state
+try{
+  if(localStorage.getItem('sb-collapsed')==='true')document.body.classList.add('collapsed');
+  ['operacion','negocio','plataforma','organizacion','sistema','soporte','home'].forEach(n=>{
+    const v=localStorage.getItem('group-'+n);
+    if(v==='true')document.querySelector(`.nav-group[data-group="${n}"]`)?.classList.add('closed');
+    else if(v==='false')document.querySelector(`.nav-group[data-group="${n}"]`)?.classList.remove('closed');
+  });
+}catch(e){}
+
+// Nav
+const titles={command:'Command Center',overview:'Overview Global',funnel:'Funnel Maestro',leads:'Lead Sources',revenue:'Revenue & MRR',invoices:'Invoices',subs:'Subscriptions',payouts:'Payouts',dunning:'Dunning',integrations:'Integraciones',keys:'API & Keys',webhooks:'Webhooks',users:'Usuarios',roles:'Roles & Permisos',clients:'Clientes',status:'System Status',incidents:'Incidencias',audit:'Auditoría',docs:'Documentación',tickets:'Tickets'};
+let currentView='command';
+let chartsInit={};
+
+function go(view){
+  currentView=view;
+  window.currentView = view;
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelector(`.view[data-view="${view}"]`)?.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelector(`.nav-item[data-view="${view}"]`)?.classList.add('active');
+  document.getElementById('crumb-current').textContent=titles[view]||view;
+  document.querySelector('.content').scrollTop=0;
+  renderBars();
+  setTimeout(()=>initChartsForView(view),50);
+
+  // Views con render dinámico (Fase 1)
+  if(view==='users' && window.UsersView) UsersView.render();
+  if(view==='roles' && window.RolesView) RolesView.render();
+  // Views con render dinámico (Fase 2)
+  if(view==='invoices' && window.InvoicesView) InvoicesView.render();
+  if(view==='subs'     && window.SubsView)     SubsView.render();
+  if(view==='payouts'  && window.PayoutsView)  PayoutsView.render();
+  if(view==='dunning'  && window.DunningView)  DunningView.render();
+  // Views con render dinámico (Fase 3)
+  if(view==='funnel'   && window.FunnelView)   FunnelView.render();
+  if(view==='leads'    && window.LeadsView)    LeadsView.render();
+  if(view==='keys'     && window.ApiKeysView)  ApiKeysView.render();
+  if(view==='webhooks' && window.WebhooksView) WebhooksView.render();
+  if(view==='tickets'  && window.TicketsView)  TicketsView.render();
+  if(view==='docs'     && window.DocsView)     DocsView.render();
+  // Revenue view: refrescar con MRR real al entrar
+  if(view==='revenue') loadRevenueReal();
+
+  try{localStorage.setItem('last-view',view);}catch(e){}
+}
+window.go = go;
+
+// Date
+(function(){
+  const d=new Date();
+  const m=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  document.getElementById('crumb-date').textContent=`— ${m[d.getMonth()]} ${d.getFullYear()}`;
+})();
+
+// Uptime grid
+(function(){
+  const el=document.getElementById('uptime-grid');
+  if(!el)return;
+  let html='';
+  for(let i=0;i<30;i++){html+=`<div class="up-cell"></div>`;}
+  el.innerHTML=html;
+})();
+
+// Charts
+function initChartsForView(view){
+  if(view==='overview' && !chartsInit.overview){
+    const ctx=document.getElementById('chart-overview');
+    if(ctx && window.Chart){
+      const labels=window.CHART_LABELS||['Ene','Feb','Mar','Abr','May','Jun'];
+      const data=window.CHART_DATA||[0,0,0,0,0,0];
+      chartsInit.overview=new Chart(ctx,{type:'line',data:{labels,datasets:[{label:'Ingresos',data,borderColor:'#6fcf97',backgroundColor:'rgba(111,207,151,0.08)',fill:true,tension:0.25,pointRadius:0,borderWidth:1.5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#aaaaaa',font:{size:10,family:'Geist Mono'}}}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#777',font:{size:9,family:'Geist Mono'}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#777',font:{size:9,family:'Geist Mono'}}}}}});
+    }
+  }
+  if(view==='revenue' && !chartsInit.mrr){
+    const ctx=document.getElementById('chart-mrr');
+    if(ctx && window.Chart){
+      const labels=window.CHART_LABELS||['Ene','Feb','Mar','Abr','May','Jun'];
+      const data=window.CHART_DATA||[0,0,0,0,0,0];
+      chartsInit.mrr=new Chart(ctx,{type:'bar',data:{labels,datasets:[{label:'MRR',data,backgroundColor:'rgba(111,207,151,0.5)',borderColor:'#6fcf97',borderWidth:1,borderRadius:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#777',font:{size:9,family:'Geist Mono'}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#777',font:{size:9,family:'Geist Mono'},callback:v=>'$'+v}}}}});
+    }
+  }
+}
+
+// ============================================
+// LOAD DATA FROM SUPABASE
+// ============================================
+async function loadData(){
+  try{
+    const supaChip=document.getElementById('supa-chip');
+    // Excluir clientes Demo (is_demo=true) — no contaminan métricas globales
+    const clients=await sbGet('clients','status=eq.activo&is_demo=eq.false&select=*');
+    CLIENTS_LIVE=clients||[];
+
+    const totalMRR=CLIENTS_LIVE.reduce((s,c)=>s+(parseFloat(c.ticket_promedio||c.ticket_mensual)||0),0);
+    const arr=totalMRR*12;
+    const rpc=CLIENTS_LIVE.length?totalMRR/CLIENTS_LIVE.length:0;
+    const now=new Date();
+    const d30=new Date(now-30*864e5).toISOString();
+    const d180=new Date(now-180*864e5).toISOString();
+
+    // Agregaciones filtradas por clients.is_demo=false via PostgREST embed inner join
+    const [leads30,apts30,churned,kpis]=await Promise.all([
+      sbGet('leads',`created_at=gte.${d30}&select=id,clients!inner(is_demo)&clients.is_demo=eq.false`).catch(()=>[]),
+      sbGet('appointments',`estado=in.(confirmed,completed)&select=id,clients!inner(is_demo)&clients.is_demo=eq.false`).catch(()=>[]),
+      sbGet('clients',`status=eq.churned&is_demo=eq.false&select=id`).catch(()=>[]),
+      sbGet('kpi_snapshots',`snapshot_date=gte.${d180.slice(0,10)}&select=snapshot_date,revenue_cents,leads_new,leads_converted,appointments_completed,ia_suggestions_approved,clients!inner(is_demo)&clients.is_demo=eq.false&order=snapshot_date`).catch(()=>[])
+    ]);
+
+    const leadsCount=leads30.length;
+    const citasCount=apts30.length;
+    const total=CLIENTS_LIVE.length+(churned.length||0);
+    const churnRate=total>0?((churned.length/total)*100).toFixed(1):'0.0';
+    const convRate=leadsCount>0?((citasCount/leadsCount)*100).toFixed(1):'0.0';
+
+    const fmt=(n)=>'$'+Math.round(n).toLocaleString('en');
+
+    // Command Center KPIs
+    document.getElementById('kpi-revenue').textContent=fmt(totalMRR);
+    document.getElementById('kpi-mrr').textContent=fmt(totalMRR);
+    document.getElementById('kpi-clients').textContent=CLIENTS_LIVE.length;
+    document.getElementById('kpi-churn').textContent=churnRate+'%';
+    document.getElementById('kpi-clients-trend').textContent=`${CLIENTS_LIVE.length} activos`;
+
+    // Command Center domain cards
+    document.getElementById('cc-leads').textContent=leadsCount;
+    document.getElementById('cc-citas').textContent=citasCount;
+    document.getElementById('cc-conv').textContent=convRate+'%';
+    document.getElementById('cc-revenue').textContent=fmt(totalMRR);
+    document.getElementById('cc-arr').textContent=fmt(arr);
+    document.getElementById('cc-rpc').textContent=fmt(rpc);
+
+    // Overview
+    document.getElementById('ov-leads').textContent=leadsCount;
+    document.getElementById('ov-citas').textContent=citasCount;
+    document.getElementById('ov-conv').textContent=convRate+'%';
+    document.getElementById('ov-clients').textContent=CLIENTS_LIVE.length;
+    // ov-nps: use IA suggestion approval ratio as health proxy until NPS pulse (DS2-future) is built
+    const lastKpi=kpis.length?kpis[kpis.length-1]:null;
+    const totalIaActivity=(kpis||[]).reduce((s,k)=>s+(k.ia_suggestions_approved||0),0);
+    document.getElementById('ov-nps').textContent=totalIaActivity>0?totalIaActivity+' acciones IA':'—';
+
+    // Revenue
+    document.getElementById('rev-mrr').textContent=fmt(totalMRR);
+    document.getElementById('rev-arr').textContent=fmt(arr);
+    document.getElementById('rev-rpc').textContent=fmt(rpc);
+    document.getElementById('rev-clients').textContent=CLIENTS_LIVE.length;
+
+    // Supabase integration card
+    supaChip.className='chip chip-ok';
+    supaChip.innerHTML='<span class="chip-dot"></span>LIVE';
+    document.getElementById('supa-clients-count').textContent=CLIENTS_LIVE.length;
+
+    // Clients view
+    document.getElementById('cl-active').textContent=CLIENTS_LIVE.length;
+    document.getElementById('cl-mrr').textContent=fmt(totalMRR);
+    document.getElementById('cl-avg').textContent=fmt(rpc);
+    document.getElementById('cl-realtime').textContent='CONECTADO';
+    document.getElementById('cl-realtime').style.color='var(--success)';
+    document.getElementById('cl-count').textContent=`${CLIENTS_LIVE.length} clientes`;
+    document.getElementById('clients-count-badge').textContent=CLIENTS_LIVE.length;
+
+    // Clients list
+    const cl=document.getElementById('cl-list');
+    if(CLIENTS_LIVE.length===0){
+      cl.innerHTML=`<div class="feed-row"><div class="feed-icon">·</div><div class="feed-body dim">No hay clientes activos en Supabase aún.</div></div>`;
+    } else {
+      cl.innerHTML=`<div class="client-row" style="font-size:9px;color:var(--text3);font-family:'Geist Mono',monospace;letter-spacing:1.5px;text-transform:uppercase;padding-top:12px;padding-bottom:8px;"><div>CLIENTE</div><div>ACTIVIDAD</div><div>LEADS</div><div>MRR</div><div>PLAN</div><div>NPS</div><div>ESTADO</div></div>` +
+      CLIENTS_LIVE.map(c=>{
+        const name=c.empresa||c.nombre||'Sin nombre';
+        const ticket=parseFloat(c.ticket_promedio||c.ticket_mensual||0);
+        const initial=name[0]?.toUpperCase()||'?';
+        return `<div class="client-row">
+          <div class="client-name"><div class="client-avatar">${initial}</div><div><div style="font-weight:500;">${name} <span class="live-dot"></span></div><div class="dim" style="font-size:10px;">${c.pais||''} · ${c.plan||'—'}</div></div></div>
+          <div class="heat-bars">${[60,80,70,90,50,70,80].map(h=>`<div class="heat-bar active" style="height:${h}%"></div>`).join('')}</div>
+          <div class="num">—</div>
+          <div class="num">${fmt(ticket)}</div>
+          <div class="dim">${(c.plan||'—').toUpperCase()}</div>
+          <div class="num ok">—</div>
+          <div><span class="chip chip-live"><span class="chip-dot"></span>LIVE</span></div>
+        </div>`;
+      }).join('');
+    }
+
+    // Chart data
+    if(kpis.length){
+      window.CHART_LABELS=kpis.map(k=>new Date(k.fecha).toLocaleDateString('es-MX',{month:'short'}));
+      window.CHART_DATA=kpis.map(k=>k.ingresos_generados||0);
+    }
+
+    // Feed
+    const feedPanel=document.getElementById('feed-panel');
+    const feedMeta=document.getElementById('feed-meta');
+    if(CLIENTS_LIVE.length>0){
+      feedMeta.textContent=`${CLIENTS_LIVE.length} clientes · data live`;
+      feedPanel.innerHTML=CLIENTS_LIVE.slice(0,5).map(c=>`
+        <div class="feed-row"><div class="feed-icon ok">✓</div><div class="feed-body">Cliente activo · <strong>${c.empresa||c.nombre}</strong> · ${c.plan||'plan'}<span class="feed-tag">CLIENTES</span></div><div class="feed-time">live</div></div>
+      `).join('');
+    } else {
+      feedMeta.textContent='sin actividad';
+      feedPanel.innerHTML=`<div class="feed-row"><div class="feed-icon">·</div><div class="feed-body dim">Sin actividad reciente. Agrega tu primer cliente.</div><div class="feed-time">—</div></div>`;
+    }
+
+    IS_LIVE=true;
+    document.getElementById('live-pill').style.display='inline-flex';
+    document.getElementById('mode-pill').textContent='LIVE';
+    document.getElementById('mode-pill').className='pill pill-ok';
+
+    toast(`${CLIENTS_LIVE.length} cliente${CLIENTS_LIVE.length===1?'':'s'} cargado${CLIENTS_LIVE.length===1?'':'s'} de Supabase`,'success');
+
+  }catch(err){
+    console.warn('Supabase load error:',err.message);
+    document.getElementById('supa-chip').className='chip chip-err';
+    document.getElementById('supa-chip').innerHTML='<span class="chip-dot"></span>ERROR';
+    document.getElementById('cl-realtime').textContent='ERROR';
+    document.getElementById('cl-realtime').style.color='var(--danger)';
+    document.getElementById('mode-pill').textContent='OFFLINE';
+    document.getElementById('mode-pill').className='pill pill-alert';
+    toast('Error conectando a Supabase: '+err.message,'err');
+  }
+}
+
+// Restore last view and boot
+const lastView=(()=>{try{return localStorage.getItem('last-view')||'command';}catch(e){return 'command';}})();
+renderBars();
+
+// Boot con sesión primero
+(async () => {
+  await loadSession();
+  if(!SESSION) return; // ya redirigió a login
+
+  // Actualizar UI con nombre del user logueado
+  try {
+    const avatarEl = document.querySelector('.user-avatar');
+    const nameEl = document.querySelector('.user-name');
+    const roleEl = document.querySelector('.user-role');
+    if(avatarEl && USER) avatarEl.textContent = (USER.fullName || USER.email || '?')[0].toUpperCase();
+    if(nameEl && USER) nameEl.textContent = USER.fullName || USER.email;
+    if(roleEl && USER) roleEl.textContent = USER.roleLabel || USER.role?.toUpperCase();
+  } catch(e){}
+
+  // Init RBAC (Fase 1) — carga scopes del team_member activo
+  if(window.RBAC && USER){
+    await RBAC.init({ sbGet, userId: USER.id });
+    // Sync role label en sidebar con el real de BD
+    const roleEl = document.querySelector('.user-role');
+    if(roleEl && RBAC.roleLabel()) roleEl.textContent = RBAC.roleLabel();
+  }
+
+  // Init Payments adapter (Fase 1) — hoy = manual, luego se cambia a stripe
+  if(window.Payments){
+    Payments.init({ sb: null, sbGet, sbInsert, sbPatch, toast });
+  }
+
+  // Exponer SESSION + USER a window (para Realtime en madre-polish.js)
+  window.SESSION = SESSION;
+  window.USER = USER;
+  window.currentView = currentView;
+
+  if(lastView!=='command') go(lastView); else renderBars();
+  loadData();
+  loadTeamStats();     // (Fase 1) fallback si polish falla
+  loadSystemViews();
+  setInterval(loadSystemViews, 60000);
+  setInterval(loadTeamStats, 120000);
+
+  // Fase 4: polish con Command Center real + sparklines + heat-bars + realtime + cache
+  if(window.initMadrePolish){
+    window.initMadrePolish();
+  }
+})();
+
+// ============================================
+// loadRevenueReal: Revenue view con MRR desde v_mrr_live + chart desde v_revenue_by_month
+// ============================================
+async function loadRevenueReal(){
+  try {
+    const [mrrRows, byMonth] = await Promise.all([
+      sbGet('v_mrr_live', 'select=*').catch(()=>[]),
+      sbGet('v_revenue_by_month', 'select=month,revenue,net_revenue,currency&limit=12').catch(()=>[])
+    ]);
+    const mrr = mrrRows?.[0] || {};
+    const total = mrr.mrr_total || 0;
+    const arr = total * 12;
+    const activeSubs = mrr.active_subs || 0;
+    const rpc = activeSubs ? total / activeSubs : 0;
+
+    const $ = (id) => document.getElementById(id);
+    if($('rev-mrr'))     $('rev-mrr').textContent     = '$' + Math.round(total).toLocaleString('en');
+    if($('rev-arr'))     $('rev-arr').textContent     = '$' + Math.round(arr).toLocaleString('en');
+    if($('rev-rpc'))     $('rev-rpc').textContent     = '$' + Math.round(rpc).toLocaleString('en');
+    if($('rev-clients')) $('rev-clients').textContent = activeSubs;
+
+    // Chart data (reverse to chronological)
+    const reversed = (byMonth || []).slice().reverse();
+    window.CHART_LABELS = reversed.map(r => new Date(r.month).toLocaleDateString('es-MX',{month:'short',year:'2-digit'}));
+    window.CHART_DATA   = reversed.map(r => Number(r.net_revenue || r.revenue || 0));
+
+    // Re-render chart si ya existe
+    if(chartsInit.mrr){ chartsInit.mrr.destroy(); chartsInit.mrr = null; }
+    setTimeout(() => initChartsForView('revenue'), 50);
+  } catch(err){
+    console.warn('[loadRevenueReal]', err.message);
+  }
+}
+
+// ============================================
+// loadTeamStats: card ORGANIZACIÓN con data real
+// ============================================
+async function loadTeamStats(){
+  try {
+    const [members, roles] = await Promise.all([
+      sbGet('team_members', 'select=id,status&limit=500'),
+      sbGet('user_roles',  'select=id').catch(()=>[])
+    ]);
+    const activeCount = (members||[]).filter(m => m.status === 'active').length;
+    const rolesCount = (roles||[]).length;
+
+    const orgCard = document.querySelector('.cc-card[onclick*="users"]');
+    if(orgCard){
+      const valEl = orgCard.querySelector('.cc-value');
+      const unitEl = orgCard.querySelector('.cc-unit');
+      const metas = orgCard.querySelectorAll('.cc-meta-val');
+      if(valEl) valEl.textContent = activeCount;
+      if(unitEl) unitEl.textContent = activeCount === 1 ? 'miembro' : 'miembros';
+      if(metas[0]) metas[0].textContent = (window.RBAC?.roleLabel() || 'OWNER');
+      if(metas[1]) metas[1].textContent = rolesCount;
+    }
+
+    // Also update clients-count-badge if uptime_checks fills it wrongly
+    const uptimeEl = document.querySelector('.cc-card[onclick*="status"] .cc-meta-val');
+    // no-op for now
+
+  } catch(err){
+    console.warn('[loadTeamStats]', err.message);
+  }
+}
+
+// ============================================
+// SYSTEM VIEWS: uptime, incidents, audit_log
+// Data fed by workflows DS2-12 (uptime) + DS2-06 (audit) + DS2-12 (incidents on failure)
+// ============================================
+async function loadSystemViews(){
+  // --- Uptime (DS2-12) ---
+  try {
+    const uptime = await sbGet('uptime_check_results', 'select=service,status,latency_ms,http_code,checked_at&order=checked_at.desc&limit=50');
+    const tbody = document.querySelector('#status-table tbody');
+    if (tbody && Array.isArray(uptime)) {
+      tbody.innerHTML = uptime.length ? uptime.map(r => {
+        const color = r.status==='up'?'var(--success)':r.status==='degraded'?'var(--warning)':'var(--danger)';
+        const dot = r.status==='up'?'●':r.status==='degraded'?'◐':'○';
+        return `<tr><td>${r.service||'—'}</td><td><span style="color:${color}">${dot}</span> ${r.status||'—'}</td><td>${r.latency_ms!=null?r.latency_ms+'ms':'—'}</td><td>${r.http_code||'—'}</td><td class="dim">${new Date(r.checked_at).toLocaleString()}</td></tr>`;
+      }).join('') : `<tr><td colspan="5" class="dim" style="text-align:center;padding:24px">Sin checks registrados aún — DS2-12 corre cada 5 min.</td></tr>`;
+    }
+    // Summary cards per service (latest result)
+    const perService = {};
+    for (const r of (uptime||[])) { if (!perService[r.service]) perService[r.service] = r; }
+    const cardsEl = document.getElementById('status-cards');
+    if (cardsEl) {
+      const services = Object.values(perService);
+      cardsEl.innerHTML = services.length ? services.map(r => {
+        const color = r.status==='up'?'var(--success)':r.status==='degraded'?'var(--warning)':'var(--danger)';
+        return `<div class="panel"><div class="panel-body"><div class="dim" style="font-size:11px;text-transform:uppercase;letter-spacing:.08em">${r.service}</div><div style="font-size:24px;color:${color};margin:8px 0;font-weight:500">${(r.status||'').toUpperCase()}</div><div class="dim" style="font-size:12px">${r.latency_ms!=null?r.latency_ms+'ms':'—'} · HTTP ${r.http_code||'—'}</div></div></div>`;
+      }).join('') : '';
+      const sub = document.getElementById('status-sub');
+      if (sub) sub.textContent = services.length ? `SISTEMA · ${services.length} SERVICIOS MONITOREADOS` : 'SISTEMA · SIN DATOS';
+    }
+  } catch(e) { console.warn('[madre] loadSystemViews uptime:', e); }
+
+  // --- Incidents (DS2-12) ---
+  try {
+    const incidents = await sbGet('incidents', 'select=id,title,severity,status,affected_services,detected_at,resolved_at&order=detected_at.desc.nullslast&limit=50');
+    const activeCount = (incidents||[]).filter(i => i.status && i.status !== 'resolved').length;
+    const sub = document.getElementById('incidents-sub');
+    if (sub) sub.textContent = `SISTEMA · ${activeCount} ACTIVA${activeCount===1?'':'S'}`;
+    const tbody = document.querySelector('#incidents-table tbody');
+    if (tbody && Array.isArray(incidents)) {
+      tbody.innerHTML = incidents.length ? incidents.map(i => {
+        const sevColor = i.severity==='sev-1'?'var(--danger)':i.severity==='sev-2'?'var(--warning)':'var(--text3)';
+        const statColor = i.status==='resolved'?'var(--success)':'var(--warning)';
+        const services = Array.isArray(i.affected_services) ? i.affected_services.join(', ') : (i.affected_services||'—');
+        return `<tr><td>${i.title||'—'}</td><td><span style="color:${sevColor}">${i.severity||'—'}</span></td><td><span style="color:${statColor}">${i.status||'—'}</span></td><td class="dim">${services}</td><td class="dim">${i.detected_at?new Date(i.detected_at).toLocaleString():'—'}</td><td class="dim">${i.resolved_at?new Date(i.resolved_at).toLocaleString():'—'}</td></tr>`;
+      }).join('') : `<tr><td colspan="6" class="dim" style="text-align:center;padding:24px">Sin incidencias registradas.</td></tr>`;
+    }
+  } catch(e) { console.warn('[madre] loadSystemViews incidents:', e); }
+
+  // --- Audit log (DS2-06, manual actions, etc.) ---
+  try {
+    const audit = await sbGet('audit_log', 'select=action,entity_type,entity_id,result,actor_email,created_at&order=created_at.desc&limit=50');
+    const tbody = document.querySelector('#audit-table tbody');
+    if (tbody && Array.isArray(audit)) {
+      tbody.innerHTML = audit.length ? audit.map(a => {
+        const resColor = a.result==='ok'?'var(--success)':a.result==='err'?'var(--danger)':'var(--warning)';
+        const entShort = (a.entity_id||'').slice(0,8);
+        return `<tr><td>${a.action||'—'}</td><td>${a.entity_type||'—'}<span class="dim"> #${entShort}</span></td><td><span style="color:${resColor}">${a.result||'—'}</span></td><td class="dim">${a.actor_email||'system'}</td><td class="dim">${new Date(a.created_at).toLocaleString()}</td></tr>`;
+      }).join('') : `<tr><td colspan="5" class="dim" style="text-align:center;padding:24px">Sin actividad registrada aún.</td></tr>`;
+    }
+    const sub = document.getElementById('audit-sub');
+    if (sub) sub.textContent = `SISTEMA · ${(audit||[]).length} EVENTOS`;
+  } catch(e) { console.warn('[madre] loadSystemViews audit:', e); }
+}
+</script>
+</body>
+</html>

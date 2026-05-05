@@ -32,7 +32,7 @@
             <div class="panel-sub">ordenado por volumen</div>
           </div>
           <table class="tbl">
-            <thead><tr><th>Source</th><th>Medium</th><th>Campaign</th><th>Leads</th><th>Calificados</th><th>Convertidos</th><th>Conversión</th><th>Intent</th><th>Último lead</th></tr></thead>
+            <thead><tr><th class="sortable">Source</th><th class="sortable">Medium</th><th class="sortable">Campaign</th><th class="sortable">Leads</th><th class="sortable">Calificados</th><th class="sortable">Convertidos</th><th class="sortable">Conversión</th><th class="sortable">Intent</th><th class="sortable">Último lead</th></tr></thead>
             <tbody id="lv-tbody"><tr><td colspan="9" class="dim" style="text-align:center;padding:24px;">Cargando…</td></tr></tbody>
           </table>
         </div>

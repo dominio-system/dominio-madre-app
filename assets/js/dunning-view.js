@@ -37,14 +37,14 @@
           <table class="tbl">
             <thead>
               <tr>
-                <th>Factura</th>
-                <th>Cliente</th>
-                <th>Outstanding</th>
-                <th>Vencida hace</th>
-                <th>Dunning state</th>
-                <th>Intentos</th>
-                <th>Último envío</th>
-                <th>Próximo</th>
+                <th class="sortable">Factura</th>
+                <th class="sortable">Cliente</th>
+                <th class="sortable">Outstanding</th>
+                <th class="sortable">Vencida hace</th>
+                <th class="sortable">Dunning state</th>
+                <th class="sortable">Intentos</th>
+                <th class="sortable">Último envío</th>
+                <th class="sortable">Próximo</th>
                 <th style="text-align:right;">Acciones</th>
               </tr>
             </thead>
@@ -147,7 +147,7 @@
     },
 
     async advance(invoiceId, channel='email'){
-      if(!confirm('¿Avanzar estado de dunning y enviar notificación?')) return;
+      if(!(await confirmDanger('Avanzar dunning', 'Se enviará una notificación al cliente y el estado avanzará al siguiente nivel (email → reminder → final → write-off).', 'Avanzar'))) return;
       try {
         const r = await fetch(`${global.SUPABASE_URL}/rest/v1/rpc/fn_advance_dunning`, {
           method: 'POST',
@@ -183,7 +183,7 @@
     },
 
     async writeOff(invoiceId){
-      if(!confirm('¿Marcar factura como incobrable? (write-off)')) return;
+      if(!(await confirmDanger('Write-off · marcar incobrable', 'La factura se marcará como incobrable y saldrá del pipeline de cobranza. El monto contará como pérdida en el reporte de revenue.', 'Write-off'))) return;
       try {
         await global.sbPatch('invoices', invoiceId, {
           status: 'uncollectible',
@@ -198,7 +198,7 @@
 
     async runSweep(){
       if(!global.RBAC?.can('billing:write')){ global.toast?.('Sin permiso', 'err'); return; }
-      if(!confirm('¿Correr cron-dunning-sweep manualmente? Esto avanzará el estado de todas las invoices elegibles.')) return;
+      if(!(await confirmDanger('Correr sweep ahora', 'Se ejecutará el cron-dunning-sweep manualmente y avanzará el estado de TODAS las invoices elegibles. Puede enviar emails masivos.', 'Correr sweep'))) return;
       try {
         const r = await fetch(`${global.SUPABASE_URL}/functions/v1/cron-dunning-sweep`, {
           method: 'POST',

@@ -34,7 +34,7 @@
           <div class="panel-head"><div class="panel-title">Keys del sistema</div><div class="panel-sub" id="ak-count">—</div></div>
           <table class="tbl">
             <thead>
-              <tr><th>Nombre</th><th>Provider</th><th>Hint</th><th>Scopes</th><th>Env</th><th>Status</th><th>Uso</th><th>Creada</th><th>Expira</th><th style="text-align:right;">Acciones</th></tr>
+              <tr><th class="sortable">Nombre</th><th class="sortable">Provider</th><th class="sortable">Hint</th><th class="sortable">Scopes</th><th class="sortable">Env</th><th class="sortable">Status</th><th class="sortable">Uso</th><th class="sortable">Creada</th><th class="sortable">Expira</th><th style="text-align:right;">Acciones</th></tr>
             </thead>
             <tbody id="ak-tbody"><tr><td colspan="10" class="dim" style="text-align:center;padding:24px;">Cargando…</td></tr></tbody>
           </table>
@@ -263,7 +263,7 @@
     },
 
     async revoke(id){
-      if(!confirm('¿Revocar esta API key? Dejará de funcionar inmediatamente y no se puede revertir.')) return;
+      if(!(await confirmDanger('Revocar API key', 'La key dejará de funcionar inmediatamente. Servicios que dependan de ella van a fallar. No se puede revertir.', 'Revocar'))) return;
       try {
         const r = await fetch(`${global.SUPABASE_URL}/rest/v1/rpc/fn_revoke_api_key`, {
           method: 'POST',

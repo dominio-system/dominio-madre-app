@@ -45,7 +45,7 @@
           <table class="tbl">
             <thead>
               <tr>
-                <th>Cliente</th><th>Plan</th><th>Monto</th><th>Intervalo</th><th>Status</th><th>Próximo cobro</th><th>Inicio</th><th style="text-align:right;">Acciones</th>
+                <th class="sortable">Cliente</th><th class="sortable">Plan</th><th class="sortable">Monto</th><th class="sortable">Intervalo</th><th class="sortable">Status</th><th class="sortable">Próximo cobro</th><th class="sortable">Inicio</th><th style="text-align:right;">Acciones</th>
               </tr>
             </thead>
             <tbody id="sv-tbody"><tr><td colspan="8" class="dim" style="text-align:center;padding:24px;">Cargando…</td></tr></tbody>

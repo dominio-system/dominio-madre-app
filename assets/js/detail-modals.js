@@ -118,25 +118,48 @@
 
   // ─── Confirm dialog reusable ───
   let _confirmCb = null;
-  function confirmDanger(title, body, onConfirm, btnLabel='Confirmar'){
+  // confirmDanger(title, body)                       → Promise<bool>  (recomendado)
+  // confirmDanger(title, body, btnLabel)              → Promise<bool>  (con label custom)
+  // confirmDanger(title, body, callback, btnLabel?)   → callback API (legacy)
+  function confirmDanger(title, body, arg3, arg4){
     ensureDOM();
+    let onConfirm = null, btnLabel = 'Confirmar';
+    if(typeof arg3 === 'function'){ onConfirm = arg3; if(typeof arg4 === 'string') btnLabel = arg4; }
+    else if(typeof arg3 === 'string') btnLabel = arg3;
+
     $('confirm-title').textContent = title;
     $('confirm-body').textContent  = body;
     $('confirm-ok-btn').textContent = btnLabel;
-    _confirmCb = onConfirm;
     $('confirm-overlay').classList.add('active');
+
+    if(onConfirm){
+      _confirmCb = onConfirm;
+      _confirmResolve = null;
+      return;
+    }
+    // Promise API
+    return new Promise(resolve => {
+      _confirmResolve = resolve;
+      _confirmCb = () => { resolve(true); _confirmResolve = null; };
+    });
   }
   function confirmCancel(){
     $('confirm-overlay')?.classList.remove('active');
+    if(_confirmResolve){ _confirmResolve(false); _confirmResolve = null; }
     _confirmCb = null;
   }
+  let _confirmResolve = null;
   // Wire one time on first ensureDOM
   document.addEventListener('click', (e) => {
     if(e.target?.id === 'confirm-ok-btn'){
-      const cb = _confirmCb; confirmCancel();
+      const cb = _confirmCb;
+      _confirmCb = null; _confirmResolve = null;
+      $('confirm-overlay')?.classList.remove('active');
       if(typeof cb === 'function') cb();
     }
   });
+  // Alias `confirmAsync` para legibilidad (idéntico a confirmDanger sin callback)
+  global.confirmAsync = confirmDanger;
 
   // ─── Cliente detail ───
   let _currentCliente = null;

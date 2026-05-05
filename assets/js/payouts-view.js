@@ -36,7 +36,7 @@
           </div>
           <table class="tbl">
             <thead>
-              <tr><th>Fecha</th><th>Método</th><th>Provider</th><th>Monto</th><th>Fee</th><th>Neto</th><th>Status</th><th>Referencia</th><th style="text-align:right;">Acciones</th></tr>
+              <tr><th class="sortable">Fecha</th><th class="sortable">Método</th><th class="sortable">Provider</th><th class="sortable">Monto</th><th class="sortable">Fee</th><th class="sortable">Neto</th><th class="sortable">Status</th><th class="sortable">Referencia</th><th style="text-align:right;">Acciones</th></tr>
             </thead>
             <tbody id="pv-tbody"><tr><td colspan="9" class="dim" style="text-align:center;padding:24px;">Cargando…</td></tr></tbody>
           </table>

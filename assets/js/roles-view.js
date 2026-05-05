@@ -312,7 +312,7 @@
         }
       } catch(e){ /* ignore */ }
 
-      if(!confirm(`¿Eliminar role "${role.label}"? Esta acción no se puede deshacer.`)) return;
+      if(!(await confirmDanger(`Eliminar role "${role.label}"`, `Los miembros con este role perderán sus permisos. Esta acción no se puede deshacer.`, 'Eliminar'))) return;
 
       try {
         const res = await fetch(`${global.SUPABASE_URL || window.SUPABASE_URL || ''}/rest/v1/user_roles?id=eq.${id}`, {

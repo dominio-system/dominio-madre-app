@@ -43,7 +43,7 @@
           <div class="panel-head"><div class="panel-title">Webhooks configurados</div><div class="panel-sub" id="wv-count">—</div></div>
           <table class="tbl">
             <thead>
-              <tr><th>Nombre / URL</th><th>Dir</th><th>Eventos</th><th>Status</th><th>Stats</th><th>Última</th><th style="text-align:right;">Acciones</th></tr>
+              <tr><th class="sortable">Nombre / URL</th><th class="sortable">Dir</th><th class="sortable">Eventos</th><th class="sortable">Status</th><th class="sortable">Stats</th><th class="sortable">Última</th><th style="text-align:right;">Acciones</th></tr>
             </thead>
             <tbody id="wv-tbody"><tr><td colspan="7" class="dim" style="text-align:center;padding:24px;">Cargando…</td></tr></tbody>
           </table>
@@ -52,7 +52,7 @@
         <div class="panel" style="margin-top:12px;">
           <div class="panel-head"><div class="panel-title">Últimas entregas</div><div class="panel-sub">log del webhook_dispatcher</div></div>
           <table class="tbl">
-            <thead><tr><th>Timestamp</th><th>Event</th><th>Webhook</th><th>HTTP</th><th>Duración</th><th>Resultado</th></tr></thead>
+            <thead><tr><th class="sortable">Timestamp</th><th class="sortable">Event</th><th class="sortable">Webhook</th><th class="sortable">HTTP</th><th class="sortable">Duración</th><th class="sortable">Resultado</th></tr></thead>
             <tbody id="wv-deliveries-tbody"><tr><td colspan="6" class="dim" style="text-align:center;padding:20px;">—</td></tr></tbody>
           </table>
         </div>
@@ -277,7 +277,7 @@
     edit(id){ const w = this._webhooks.find(x => x.id === id); if(w) this.openCreateModal(w); },
 
     async test(id){
-      if(!confirm('¿Enviar un evento de prueba (test.ping) a este webhook?')) return;
+      if(!(await confirmDanger('Enviar test ping', 'Se enviará un evento test.ping al endpoint para verificar conectividad.', 'Enviar'))) return;
       try {
         const r = await fetch(`${global.SUPABASE_URL}/functions/v1/webhook-dispatcher`, {
           method: 'POST',
@@ -303,7 +303,7 @@
       catch(err){ global.toast?.('Error: ' + err.message, 'err'); }
     },
     async delete(id){
-      if(!confirm('¿Eliminar este webhook? También se borrará su historial de entregas.')) return;
+      if(!(await confirmDanger('Eliminar webhook', 'El webhook se eliminará junto con todo su historial de entregas. Esta acción no se puede deshacer.', 'Eliminar'))) return;
       try {
         const r = await fetch(`${global.SUPABASE_URL}/rest/v1/webhooks?id=eq.${id}`, { method:'DELETE', headers: global.sbHeaders() });
         if(!r.ok) throw new Error(`HTTP ${r.status}`);

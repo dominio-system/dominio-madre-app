@@ -42,13 +42,13 @@
           <table class="tbl">
             <thead>
               <tr>
-                <th>Usuario</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Estado</th>
-                <th>2FA</th>
-                <th>Último login</th>
-                <th>Última actividad</th>
+                <th class="sortable">Usuario</th>
+                <th class="sortable">Email</th>
+                <th class="sortable">Role</th>
+                <th class="sortable">Estado</th>
+                <th class="sortable">2FA</th>
+                <th class="sortable">Último login</th>
+                <th class="sortable">Última actividad</th>
                 <th style="text-align:right;">Acciones</th>
               </tr>
             </thead>

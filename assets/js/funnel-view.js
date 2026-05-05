@@ -40,7 +40,7 @@
         <div class="panel" style="margin-top:12px;">
           <div class="panel-head"><div class="panel-title">Top lead sources</div><div class="panel-sub" id="fv-sources-count">—</div></div>
           <table class="tbl">
-            <thead><tr><th>Source</th><th>Medium</th><th>Campaign</th><th>Leads</th><th>Calificados</th><th>Cerrados</th><th>Conversión</th><th>Intent prom.</th></tr></thead>
+            <thead><tr><th class="sortable">Source</th><th class="sortable">Medium</th><th class="sortable">Campaign</th><th class="sortable">Leads</th><th class="sortable">Calificados</th><th class="sortable">Cerrados</th><th class="sortable">Conversión</th><th class="sortable">Intent prom.</th></tr></thead>
             <tbody id="fv-sources"><tr><td colspan="8" class="dim" style="text-align:center;padding:20px;">Cargando…</td></tr></tbody>
           </table>
         </div>

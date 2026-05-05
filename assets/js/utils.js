@@ -131,6 +131,97 @@
     return clone;
   }
 
+  // ─── Sort columna · sortColumn(thElement) ───
+  // Uso: <th class="sortable" data-sort="numeric|text|date" onclick="MadreUtils.sortColumn(this)">
+  // - Detecta tipo auto si no hay data-sort
+  // - Ordena filas del tbody · marca th con ↑/↓
+  // - Click 1 = ASC, click 2 = DESC, click 3 = orden original
+  function sortColumn(th){
+    if(!th || !th.parentElement) return;
+    const tr = th.parentElement;
+    const table = th.closest('table');
+    if(!tr || !table) return;
+    const tbody = table.tBodies[0];
+    if(!tbody) return;
+    const colIndex = Array.from(tr.children).indexOf(th);
+    if(colIndex < 0) return;
+
+    // Determinar nuevo orden (toggle)
+    const currentDir = th.dataset.sortDir || ''; // '', 'asc', 'desc'
+    const nextDir = currentDir === 'asc' ? 'desc' : (currentDir === 'desc' ? '' : 'asc');
+
+    // Limpiar indicadores en TODAS las th de esta tabla
+    tr.querySelectorAll('th').forEach(t => { t.dataset.sortDir = ''; t.classList.remove('sort-asc','sort-desc'); });
+
+    if(nextDir === ''){
+      // Restaurar orden original (basado en data-sort-orig)
+      const rows = Array.from(tbody.rows);
+      rows.sort((a,b) => (parseInt(a.dataset.sortOrig||0)||0) - (parseInt(b.dataset.sortOrig||0)||0));
+      rows.forEach(r => tbody.appendChild(r));
+      return;
+    }
+    th.dataset.sortDir = nextDir;
+    th.classList.add(nextDir === 'asc' ? 'sort-asc' : 'sort-desc');
+
+    // Guardar orden original UNA sola vez
+    const rows = Array.from(tbody.rows);
+    if(!rows[0]?.dataset.sortOrig){
+      rows.forEach((r,i) => r.dataset.sortOrig = i);
+    }
+
+    // Tipo de sort
+    let sortType = th.dataset.sort || 'auto';
+    if(sortType === 'auto'){
+      // Inferir del primer cell con valor
+      const sample = rows.find(r => (r.cells[colIndex]?.textContent || '').trim());
+      const txt = (sample?.cells[colIndex]?.textContent || '').trim();
+      const hasTs = sample?.cells[colIndex]?.querySelector('[data-ts]');
+      if(hasTs) sortType = 'date';
+      else if(/^[$€£¥]?\s*-?[\d,]+(\.\d+)?\s*[%kKmMbB]?$/.test(txt) || /^-?\d+$/.test(txt)) sortType = 'numeric';
+      else sortType = 'text';
+    }
+
+    const cellValue = (row) => {
+      const cell = row.cells[colIndex];
+      if(!cell) return '';
+      if(sortType === 'date'){
+        const ts = cell.querySelector('[data-ts]');
+        return ts ? new Date(ts.dataset.ts).getTime() : 0;
+      }
+      const txt = (cell.textContent || '').trim();
+      if(sortType === 'numeric'){
+        // Limpia $, %, ',', espacios y sufijos k/m
+        const clean = txt.replace(/[$€£¥%,\s]/g, '');
+        const n = parseFloat(clean);
+        return Number.isFinite(n) ? n : 0;
+      }
+      return txt.toLowerCase();
+    };
+
+    rows.sort((a,b) => {
+      const va = cellValue(a), vb = cellValue(b);
+      if(sortType === 'text'){
+        return nextDir === 'asc' ? va.localeCompare(vb,'es') : vb.localeCompare(va,'es');
+      }
+      return nextDir === 'asc' ? (va - vb) : (vb - va);
+    });
+    rows.forEach(r => tbody.appendChild(r));
+  }
+
+  // CSS para sortable ths
+  if(!document.getElementById('madre-sort-css')){
+    const style = document.createElement('style');
+    style.id = 'madre-sort-css';
+    style.textContent = `
+      th.sortable{cursor:pointer;user-select:none;position:relative;transition:color .12s;}
+      th.sortable:hover{color:var(--text)!important;}
+      th.sortable::after{content:'⇅';opacity:0.25;margin-left:5px;font-size:9px;}
+      th.sortable.sort-asc::after{content:'↑';opacity:1;color:var(--text);}
+      th.sortable.sort-desc::after{content:'↓';opacity:1;color:var(--text);}
+    `;
+    document.head.appendChild(style);
+  }
+
   // ─── Inject skeleton shimmer + states CSS one-shot ───
   if(!document.getElementById('madre-utils-css')){
     const style = document.createElement('style');
@@ -152,8 +243,15 @@
   global.MadreUtils = {
     COLORS, escapeHtml, relativeTime, absoluteTime,
     formatTimestamps, emptyState, skeletonRows, errorState,
-    resetNodeListeners,
+    resetNodeListeners, sortColumn,
   };
+
+  // Click delegado global · cualquier <th class="sortable"> dispara sort
+  // sin necesidad de onclick inline. Evita reattach tras re-renders.
+  document.addEventListener('click', (e) => {
+    const th = e.target.closest('th.sortable');
+    if(th) sortColumn(th);
+  });
 
   // Aliases globales (no romper código existente)
   if(typeof global.escapeHtml === 'undefined') global.escapeHtml = escapeHtml;

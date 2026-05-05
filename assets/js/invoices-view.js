@@ -60,14 +60,14 @@
           <table class="tbl">
             <thead>
               <tr>
-                <th>Número</th>
-                <th>Cliente</th>
-                <th>Monto</th>
-                <th>Pagado</th>
-                <th>Status</th>
-                <th>Emitida</th>
-                <th>Vence</th>
-                <th>Pagada</th>
+                <th class="sortable">Número</th>
+                <th class="sortable">Cliente</th>
+                <th class="sortable">Monto</th>
+                <th class="sortable">Pagado</th>
+                <th class="sortable">Status</th>
+                <th class="sortable">Emitida</th>
+                <th class="sortable">Vence</th>
+                <th class="sortable">Pagada</th>
                 <th style="text-align:right;">Acciones</th>
               </tr>
             </thead>
@@ -339,7 +339,7 @@
     },
 
     async void(invoiceId){
-      if(!confirm('¿Anular esta factura? No se puede revertir.')) return;
+      if(!(await confirmDanger('Anular factura', 'Esta acción no se puede revertir. La factura quedará marcada como void en Stripe.', 'Anular'))) return;
       try {
         await global.sbPatch('invoices', invoiceId, { status: 'void', voided_at: new Date().toISOString() });
         global.toast?.('Factura anulada', 'success');
@@ -348,7 +348,7 @@
     },
 
     async delete(invoiceId){
-      if(!confirm('¿Eliminar borrador?')) return;
+      if(!(await confirmDanger('Eliminar borrador', 'El borrador será eliminado permanentemente. Esta acción no se puede deshacer.', 'Eliminar'))) return;
       try {
         const res = await fetch(`${global.SUPABASE_URL}/rest/v1/invoices?id=eq.${invoiceId}`, { method: 'DELETE', headers: global.sbHeaders() });
         if(!res.ok) throw new Error(`HTTP ${res.status}`);

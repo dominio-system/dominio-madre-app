@@ -138,8 +138,8 @@
             <td class="num" style="color:${q.days_overdue > 30 ? 'var(--danger)' : 'var(--warn)'};">${q.days_overdue} días</td>
             <td>${stateChip}</td>
             <td class="num">${q.dunning_attempts || 0}</td>
-            <td class="num dim">${q.last_dunning_at ? new Date(q.last_dunning_at).toLocaleDateString('es-MX',{day:'2-digit',month:'short'}) + ' · ' + (q.last_dunning_channel||'').toUpperCase() : '—'}</td>
-            <td class="num dim">${q.next_dunning_at ? new Date(q.next_dunning_at).toLocaleDateString('es-MX',{day:'2-digit',month:'short'}) : '<span style="color:var(--text3);">—</span>'}</td>
+            <td class="num dim">${q.last_dunning_at ? `<span data-ts="${escapeHtml(q.last_dunning_at)}">${relativeTime(q.last_dunning_at)}</span>` + ' · ' + (q.last_dunning_channel||'').toUpperCase() : '—'}</td>
+            <td class="num dim">${q.next_dunning_at ? `<span data-ts="${escapeHtml(q.next_dunning_at)}">${relativeTime(q.next_dunning_at)}</span>` : '<span style="color:var(--text3);">—</span>'}</td>
             <td style="text-align:right;">${actions.join(' ')}</td>
           </tr>
         `;

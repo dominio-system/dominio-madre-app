@@ -121,7 +121,10 @@
       const list = document.getElementById('dv-list');
       const rows = this._filtered();
       if(rows.length === 0){
-        list.innerHTML = `<div style="padding:30px 20px;text-align:center;color:var(--text3);font-size:11px;">Sin artículos con este filtro.</div>`;
+        list.innerHTML = global.MadreUtils.emptyState({
+          icon:'📄', title:'Sin artículos',
+          body:'No hay documentación que coincida con este filtro. Probá quitar filtros o agrega un nuevo artículo.'
+        });
         return;
       }
       list.innerHTML = rows.map(a => {

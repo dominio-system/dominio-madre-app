@@ -116,8 +116,8 @@
             <td><span class="chip chip-off">${escapeHtml((k.environment||'prod').toUpperCase().slice(0,4))}</span></td>
             <td>${statusChip}</td>
             <td class="num">${k.usage_count || 0}</td>
-            <td class="num dim">${new Date(k.created_at).toLocaleDateString('es-MX',{day:'2-digit',month:'short'})}</td>
-            <td class="num dim">${k.expires_at ? new Date(k.expires_at).toLocaleDateString('es-MX',{day:'2-digit',month:'short'}) : '—'}</td>
+            <td class="num dim"><span data-ts="${escapeHtml(k.created_at)}">${relativeTime(k.created_at)}</span></td>
+            <td class="num dim">${k.expires_at ? `<span data-ts="${escapeHtml(k.expires_at)}">${relativeTime(k.expires_at)}</span>` : '—'}</td>
             <td style="text-align:right;">${actions.join(' ')}</td>
           </tr>`;
       }).join('');

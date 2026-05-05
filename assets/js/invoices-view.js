@@ -198,9 +198,9 @@
             <td class="num"><strong>${cur} ${amount.toLocaleString('en',{minimumFractionDigits:2})}</strong></td>
             <td class="num ${i.amount_paid_cents >= i.amount_due_cents ? 'ok' : 'dim'}">${cur} ${paid.toLocaleString('en',{minimumFractionDigits:2})}</td>
             <td>${statusChip}${dunningBadge}</td>
-            <td class="num dim">${i.created_at ? new Date(i.created_at).toLocaleDateString('es-MX',{day:'2-digit',month:'short'}) : '—'}</td>
-            <td class="num dim">${i.due_date ? new Date(i.due_date).toLocaleDateString('es-MX',{day:'2-digit',month:'short'}) : '—'}</td>
-            <td class="num ${i.paid_at ? 'ok' : 'dim'}">${i.paid_at ? new Date(i.paid_at).toLocaleDateString('es-MX',{day:'2-digit',month:'short'}) : '—'}</td>
+            <td class="num dim">${i.created_at ? `<span data-ts="${escapeHtml(i.created_at)}">${relativeTime(i.created_at)}</span>` : '—'}</td>
+            <td class="num dim">${i.due_date ? `<span data-ts="${escapeHtml(i.due_date)}">${relativeTime(i.due_date)}</span>` : '—'}</td>
+            <td class="num ${i.paid_at ? 'ok' : 'dim'}">${i.paid_at ? `<span data-ts="${escapeHtml(i.paid_at)}">${relativeTime(i.paid_at)}</span>` : '—'}</td>
             <td style="text-align:right;">${actions.join(' ')}</td>
           </tr>
         `;

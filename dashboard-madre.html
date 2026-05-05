@@ -403,9 +403,9 @@ body.notif-open .notif-overlay{pointer-events:auto;}
     </div>
 
     <div class="nav-group" data-group="operacion">
-      <div class="group-head" onclick="toggleGroup('operacion')"><div class="group-chev"><svg viewBox="0 0 8 8" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3l2 2 2-2"/></svg></div><div class="group-label">Operacion</div><div class="group-count">3</div></div>
+      <div class="group-head" onclick="toggleGroup('operacion')"><div class="group-chev"><svg viewBox="0 0 8 8" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3l2 2 2-2"/></svg></div><div class="group-label">Operacion</div><div class="group-count">2</div></div>
       <div class="group-items">
-        <div class="nav-item" data-view="overview" data-label="Overview Global" onclick="go('overview')"><span class="nav-icon"><svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="6.5" cy="6.5" r="5"/><path d="M1.5 6.5h10M6.5 1.5c2 1.5 2 8.5 0 10M6.5 1.5c-2 1.5-2 8.5 0 10"/></svg></span><span class="nav-text">Overview Global</span></div>
+        <!-- Migración v1.0.10 · "Overview Global" eliminado · duplicaba Command Center -->
         <div class="nav-item" data-view="funnel" data-label="Funnel Maestro" onclick="go('funnel')"><span class="nav-icon"><svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M1.5 2h10l-3 4v5l-4-1V6z"/></svg></span><span class="nav-text">Funnel Maestro</span></div>
         <div class="nav-item" data-view="leads" data-label="Lead Sources" onclick="go('leads')"><span class="nav-icon"><svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="6.5" cy="4.5" r="2.5"/><path d="M2 11.5c0-2 2-3.5 4.5-3.5s4.5 1.5 4.5 3.5"/></svg></span><span class="nav-text">Lead Sources</span></div>
       </div>
@@ -626,18 +626,11 @@ body.notif-open .notif-overlay{pointer-events:auto;}
       </div>
     </div>
 
-    <!-- OVERVIEW -->
-    <div class="view" data-view="overview">
-      <div class="page-head"><div><div class="page-title">Overview Global</div><div class="page-sub">OPERACION · VISTA CONSOLIDADA</div></div><div class="page-actions"><button class="btn ghost">⟱ Exportar</button></div></div>
-      <div class="kpi-strip five">
-        <div class="kpi-card"><div class="kpi-label">LEADS 30D</div><div class="kpi-value" id="ov-leads">0</div><div class="kpi-trend">total</div></div>
-        <div class="kpi-card"><div class="kpi-label">CITAS AGENDADAS</div><div class="kpi-value" id="ov-citas">0</div><div class="kpi-trend">confirmadas</div></div>
-        <div class="kpi-card"><div class="kpi-label">CONV. LEAD→CITA</div><div class="kpi-value" id="ov-conv">0%</div><div class="kpi-trend">promedio</div></div>
-        <div class="kpi-card"><div class="kpi-label">CLIENTES</div><div class="kpi-value" id="ov-clients">0</div><div class="kpi-trend">activos</div></div>
-        <div class="kpi-card"><div class="kpi-label">NPS</div><div class="kpi-value" id="ov-nps">—</div><div class="kpi-trend">último</div></div>
-      </div>
-      <div class="sec-head"><span class="sec-label">TENDENCIA</span><span class="sec-title">Evolución ingresos</span></div>
-      <div class="panel"><div class="chart-wrap"><canvas id="chart-overview"></canvas></div></div>
+    <!-- OVERVIEW · ELIMINADO en v1.0.10 · era duplicado parcial de Command Center.
+         Si necesitas exportar el snapshot, usa Configuración → Sistema → Exportar audit_log -->
+    <div class="view" data-view="overview" style="display:none;">
+      <div class="page-head"><div><div class="page-title">Overview deprecado</div><div class="page-sub">REDIRIGIENDO A COMMAND CENTER…</div></div></div>
+      <script>setTimeout(() => { if(window.go) window.go('command'); }, 50);</script>
     </div>
 
     <!-- REVENUE -->
@@ -952,6 +945,8 @@ function go(view){
   if(view !== 'status' && window.StatusView) window.StatusView.stopRefresh();
   // Revenue view: refrescar con MRR real al entrar
   if(view==='revenue') loadRevenueReal();
+  // Migración v1.0.10 · auto-formatear timestamps en la nueva vista
+  setTimeout(() => window.MadreUtils?.formatTimestamps?.(), 100);
 
   try{localStorage.setItem('last-view',view);}catch(e){}
 }

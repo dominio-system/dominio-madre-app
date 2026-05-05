@@ -105,7 +105,10 @@
       document.getElementById('sv-count').textContent = `${rows.length} de ${this._subs.length}`;
 
       if(rows.length === 0){
-        tbody.innerHTML = `<tr><td colspan="8" class="dim" style="text-align:center;padding:24px;">Sin suscripciones.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" style="padding:0;">${global.MadreUtils.emptyState({
+          icon:'⟲', title:'Sin subscripciones todavía',
+          body:'Cuando un cliente Pro active su plan, su subscripción aparecerá aquí.'
+        })}</td></tr>`;
         return;
       }
 

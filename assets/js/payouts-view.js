@@ -85,10 +85,10 @@
       document.getElementById('pv-count').textContent = `${this._payouts.length} registros`;
 
       if(this._payouts.length === 0){
-        tbody.innerHTML = `<tr><td colspan="9" class="dim" style="text-align:center;padding:30px;">
-          <div style="font-size:13px;margin-bottom:6px;">Sin payouts registrados aún.</div>
-          <div style="font-size:11px;">Usa "+ Registrar payout" cuando recibas una transferencia, PayPal, etc.</div>
-        </td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" style="padding:0;">${global.MadreUtils.emptyState({
+          icon:'⬇', title:'Sin payouts registrados aún',
+          body:'Usá "+ Registrar payout" cuando recibas una transferencia, PayPal, Wise, etc.'
+        })}</td></tr>`;
         return;
       }
 
@@ -114,7 +114,7 @@
 
         return `
           <tr>
-            <td class="num">${p.arrival_date ? new Date(p.arrival_date).toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'2-digit'}) : '<span class="dim">—</span>'}</td>
+            <td class="num">${p.arrival_date ? `<span data-ts="${escapeHtml(p.arrival_date)}">${relativeTime(p.arrival_date)}</span>` : '<span class="dim">—</span>'}</td>
             <td>${escapeHtml((p.method||'—').toUpperCase())}</td>
             <td class="dim">${escapeHtml(p.provider||'manual')}</td>
             <td class="num"><strong>${cur} ${(p.amount_cents/100).toLocaleString('en',{minimumFractionDigits:2})}</strong></td>

@@ -106,7 +106,7 @@
             <td class="num ok">${s.converted || 0}</td>
             <td class="num" style="color:${convColor};"><strong>${s.conversion_pct || 0}%</strong></td>
             <td class="num dim">${s.avg_intent_score ?? '—'}</td>
-            <td class="num dim">${s.last_lead_at ? new Date(s.last_lead_at).toLocaleDateString('es-MX',{day:'2-digit',month:'short'}) : '—'}</td>
+            <td class="num dim">${s.last_lead_at ? `<span data-ts="${escapeHtml(s.last_lead_at)}">${relativeTime(s.last_lead_at)}</span>` : '—'}</td>
           </tr>`;
       }).join('');
     }

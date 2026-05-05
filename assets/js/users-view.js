@@ -170,7 +170,7 @@
         const twoFa = m.two_factor_enabled
           ? '<span style="color:var(--success);">●</span>'
           : '<span style="color:var(--text3);">○</span>';
-        const lastLogin = m.last_login_at ? new Date(m.last_login_at).toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'2-digit'}) : '—';
+        const lastLogin = m.last_login_at ? `<span data-ts="${escapeHtml(m.last_login_at)}">${relativeTime(m.last_login_at)}</span>` : '—';
         const lastAct   = m.last_audit_at ? new Date(m.last_audit_at).toLocaleString() : '—';
         const lastActAction = m.last_audit_action ? `<div class="dim" style="font-size:9px;font-family:'Geist Mono',monospace;">${escapeHtml(m.last_audit_action)}</div>` : '';
 

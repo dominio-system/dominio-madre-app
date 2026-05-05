@@ -1,6 +1,66 @@
 const { app, BrowserWindow, ipcMain, shell, nativeTheme, Menu, safeStorage } = require('electron');
+const Sentry = require('@sentry/electron/main');
 const path = require('path');
 const fs = require('fs');
+
+// ── Sentry (error tracking) ─────────────────────────────────────────────────
+// El DSN es semi-público (queda en el binario); NO es secret.
+// Compartimos proyecto con cliente · diferenciamos por `release` tag.
+const SENTRY_DSN = 'https://fe808b6a8002aed80b9893cd68ed72c5@o4511273677422592.ingest.us.sentry.io/4511273688170496';
+
+const _PII_KEY_RE = /(token|jwt|password|apikey|api[_-]?key|secret|authorization|session|refresh|credentials|bearer)/i;
+
+function _scrubObject(obj, depth = 0) {
+  if (!obj || typeof obj !== 'object' || depth > 5) return obj;
+  if (Array.isArray(obj)) return obj.map(v => _scrubObject(v, depth + 1));
+  const out = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (_PII_KEY_RE.test(k)) { out[k] = '[REDACTED]'; continue; }
+    if (v && typeof v === 'object') { out[k] = _scrubObject(v, depth + 1); continue; }
+    if (typeof v === 'string' && /^[\w-]+\.[\w-]+\.[\w-]+$/.test(v) && v.length > 40) {
+      out[k] = '[JWT-REDACTED]'; continue;
+    }
+    out[k] = v;
+  }
+  return out;
+}
+
+Sentry.init({
+  dsn: SENTRY_DSN,
+  release: `dominio-madre@${app.getVersion()}`,
+  environment: process.env.NODE_ENV === 'development' ? 'development' : 'production',
+  tracesSampleRate: 0,
+  profilesSampleRate: 0,
+  beforeSend(event) {
+    try {
+      if (event.request?.headers) event.request.headers = _scrubObject(event.request.headers);
+      if (event.request?.data)    event.request.data    = _scrubObject(event.request.data);
+      if (event.extra)            event.extra           = _scrubObject(event.extra);
+      if (event.contexts)         event.contexts        = _scrubObject(event.contexts);
+      if (event.breadcrumbs) {
+        event.breadcrumbs = event.breadcrumbs.map(b => {
+          if (b.data)    b.data    = _scrubObject(b.data);
+          if (b.message) b.message = String(b.message).replace(/eyJ[\w-]+\.[\w-]+\.[\w-]+/g, '[JWT-REDACTED]');
+          return b;
+        });
+      }
+      if (event.user) {
+        delete event.user.email;
+        delete event.user.username;
+        delete event.user.ip_address;
+      }
+    } catch (e) { console.warn('[Sentry] scrub error:', e.message); }
+    return event;
+  },
+  ignoreErrors: [
+    'ResizeObserver loop limit exceeded',
+    'ResizeObserver loop completed with undelivered notifications',
+    'Non-Error promise rejection captured',
+    'AbortError',
+    'The operation was aborted',
+    'Network request failed',
+  ],
+});
 
 // ── Config ──────────────────────────────────────────────────────────────────
 app.setName('Dominio Corporativo');
@@ -289,10 +349,80 @@ async function tryAutoLogin() {
   return true;
 }
 
+// ── Mini-sprint madre 2026-04-23 · Hardening IPC ─────────────────────────────
+// Validación estricta de payloads + allowlist open-external. Evita que un
+// renderer comprometido persista basura en session o redirija a dominios
+// arbitrarios.
+
+const UUID_RE  = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const JWT_RE   = /^[\w-]+\.[\w-]+\.[\w-]+$/;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function validateSessionPayload(payload) {
+  if (!payload || typeof payload !== 'object') return null;
+  const { accessToken, refreshToken, expiresAt, userId, email, name, role } = payload;
+
+  if (typeof accessToken !== 'string' || accessToken.length < 20 || accessToken.length > 4000) return null;
+  if (!JWT_RE.test(accessToken)) return null;
+  if (typeof refreshToken !== 'string' || refreshToken.length < 10 || refreshToken.length > 4000) return null;
+
+  const exp = (typeof expiresAt === 'number' && Number.isFinite(expiresAt) && expiresAt > 0) ? expiresAt : null;
+
+  return {
+    accessToken,
+    refreshToken,
+    expiresAt: exp,
+    userId:  (typeof userId === 'string' && UUID_RE.test(userId)) ? userId : null,
+    email:   (typeof email === 'string' && EMAIL_RE.test(email) && email.length < 200) ? email : '',
+    name:    typeof name === 'string' ? name.slice(0, 200) : '',
+    role:    (typeof role === 'string' && ['owner','admin','staff','viewer'].includes(role)) ? role : 'viewer',
+  };
+}
+
+// Allowlist madre: incluye todo lo del cliente + dashboards de admin (Supabase,
+// Stripe, Resend, Railway, n8n, etc.) porque el founder legítimamente los visita.
+const ALLOWED_EXTERNAL_HOSTS = new Set([
+  // Dominios propios
+  'dominiosystem.com', 'www.dominiosystem.com', 'app.dominiosystem.com', 'demo.dominiosystem.com',
+  // Supabase
+  'supabase.com', 'app.supabase.com', 'ywlyuuddqitduqtdttgo.supabase.co',
+  // Meta / WhatsApp
+  'web.whatsapp.com', 'business.whatsapp.com', 'business.facebook.com', 'developers.facebook.com', 'wa.me',
+  // Admin dashboards que el founder usa
+  'stripe.com', 'dashboard.stripe.com', 'checkout.stripe.com',
+  'resend.com',
+  'railway.app', 'railway.com',
+  'cal.com', 'app.cal.com',
+  'github.com', 'raw.githubusercontent.com',
+  'vercel.com',
+  // Finanzas/legal de LLC
+  'mercury.com', 'app.mercury.com',
+  'doola.com', 'app.doola.com',
+  // n8n hosted
+  'n8n-production-d3a5.up.railway.app',
+]);
+const ALLOWED_EXTERNAL_SUFFIXES = ['.dominiosystem.com', '.supabase.co', '.railway.app', '.vercel.app'];
+
+function isExternalUrlAllowed(raw) {
+  if (typeof raw !== 'string' || raw.length > 2000) return false;
+  // Permitir mailto: para botones "email a soporte"
+  if (raw.startsWith('mailto:') && /^mailto:[\w.+-]+@[\w-]+(\.[\w-]+)+$/i.test(raw)) return true;
+  let u;
+  try { u = new URL(raw); } catch { return false; }
+  if (u.protocol !== 'https:') return false;
+  if (ALLOWED_EXTERNAL_HOSTS.has(u.hostname)) return true;
+  return ALLOWED_EXTERNAL_SUFFIXES.some(s => u.hostname.endsWith(s));
+}
+
 // ── IPC handlers ─────────────────────────────────────────────────────────────
 ipcMain.on('login-success', (event, session) => {
-  currentSession = session;
-  persistSession(session);
+  const safe = validateSessionPayload(session);
+  if (!safe) {
+    console.error('[IPC madre] login-success: payload inválido o malformado. Rechazado.');
+    return;
+  }
+  currentSession = safe;
+  persistSession(safe);
   scheduleRefresh();
   createDashboardWindow();
   if (loginWindow) { loginWindow.destroy(); loginWindow = null; }
@@ -308,11 +438,18 @@ ipcMain.handle('refresh-session', async () => {
   }
   try {
     const fresh = await refreshAccessToken(currentSession.refreshToken);
+    const nextAccess = typeof fresh.access_token === 'string' && JWT_RE.test(fresh.access_token) ? fresh.access_token : null;
+    if (!nextAccess) throw new Error('invalid_refresh_response');
+
     currentSession = {
       ...currentSession,
-      accessToken: fresh.access_token,
-      refreshToken: fresh.refresh_token || currentSession.refreshToken,
-      expiresAt: fresh.expires_at || (Math.floor(Date.now() / 1000) + (fresh.expires_in || 3600)),
+      accessToken: nextAccess,
+      refreshToken: (typeof fresh.refresh_token === 'string' && fresh.refresh_token.length > 10)
+        ? fresh.refresh_token
+        : currentSession.refreshToken,
+      expiresAt: (typeof fresh.expires_at === 'number' && Number.isFinite(fresh.expires_at))
+        ? fresh.expires_at
+        : (Math.floor(Date.now() / 1000) + (fresh.expires_in || 3600)),
     };
     persistSession(currentSession);
     scheduleRefresh();
@@ -324,8 +461,100 @@ ipcMain.handle('refresh-session', async () => {
 });
 
 ipcMain.on('open-external', (event, url) => {
-  if (url && url.startsWith('https://')) shell.openExternal(url);
+  if (isExternalUrlAllowed(url)) {
+    shell.openExternal(url);
+  } else {
+    console.warn('[IPC madre] open-external bloqueado (dominio no permitido):',
+      typeof url === 'string' ? url.slice(0, 200) : typeof url);
+  }
 });
+
+// ── Settings view · Fase 5 v1.0.7 ────────────────────────────────────────────
+// app-info: devuelve metadata estática (versiones, paths, plataforma) para la
+// vista Configuración. No expone nada sensible (ni access tokens ni session).
+ipcMain.handle('app-info', () => ({
+  appName: app.getName(),
+  appVersion: app.getVersion(),
+  electron: process.versions.electron,
+  chrome: process.versions.chrome,
+  node: process.versions.node,
+  v8: process.versions.v8,
+  platform: process.platform,
+  arch: process.arch,
+  userDataPath: app.getPath('userData'),
+  isPackaged: app.isPackaged,
+}));
+
+// open-devtools: abre devtools del dashboard window. Útil cuando founder
+// necesita ver consola sin tener que reabrir app con --dev.
+ipcMain.on('open-devtools', () => {
+  if (dashboardWindow && !dashboardWindow.isDestroyed()) {
+    dashboardWindow.webContents.openDevTools({ mode: 'detach' });
+  }
+});
+
+// check-updates: consulta GitHub Releases API por la última versión publicada
+// y compara con app.getVersion(). Si el repo es privado o no tiene releases,
+// devuelve estado 'unavailable' con mensaje legible.
+//
+// IMPORTANTE: hoy madre app NO tiene electron-updater configurado (post-LLC + Apple
+// Developer ID). Esta función solo informa + abre el DMG en el navegador.
+// Owner = `dominio-system` (mismo que cliente, repo `dominio-client-app`).
+// El repo `dominio-madre-app` aún no existe / no es público — mientras no exista,
+// la GitHub API devolverá 404 y la vista mostrará el mensaje "Releases no disponibles".
+// Cuando crees el repo y publiques v1.0.7, esto empezará a funcionar automáticamente.
+const GITHUB_REPO_OWNER = 'dominio-system';
+const GITHUB_REPO_NAME  = 'dominio-madre-app';
+
+ipcMain.handle('check-updates', async () => {
+  const current = app.getVersion();
+  try {
+    const url = `https://api.github.com/repos/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/releases/latest`;
+    const resp = await fetch(url, {
+      headers: { 'Accept': 'application/vnd.github+json', 'User-Agent': 'Dominio-Madre' },
+    });
+    if (resp.status === 404) {
+      return {
+        status: 'unavailable',
+        current,
+        message: 'Releases públicas no disponibles todavía. La auto-actualización se activará tras Apple Developer ID (post-LLC).',
+      };
+    }
+    if (!resp.ok) {
+      return { status: 'error', current, message: `GitHub respondió ${resp.status}` };
+    }
+    const data = await resp.json();
+    const latest = (data.tag_name || '').replace(/^v/i, '');
+    if (!latest) return { status: 'error', current, message: 'Release sin tag_name' };
+
+    const cmp = compareSemver(current, latest);
+    const dmgAsset = (data.assets || []).find(a => /\.dmg$/i.test(a.name));
+    return {
+      status: cmp < 0 ? 'available' : 'up-to-date',
+      current,
+      latest,
+      releaseNotes: data.body || '',
+      releaseUrl: data.html_url || '',
+      dmgUrl: dmgAsset ? dmgAsset.browser_download_url : (data.html_url || ''),
+      dmgName: dmgAsset ? dmgAsset.name : null,
+      publishedAt: data.published_at || null,
+    };
+  } catch (e) {
+    return { status: 'error', current, message: e.message || 'Network error' };
+  }
+});
+
+// Comparador semver simple (1.0.7 vs 1.0.10). Devuelve -1 si a<b, 0 si a==b, 1 si a>b.
+function compareSemver(a, b) {
+  const pa = String(a).split('.').map(n => parseInt(n, 10) || 0);
+  const pb = String(b).split('.').map(n => parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const x = pa[i] || 0, y = pb[i] || 0;
+    if (x < y) return -1;
+    if (x > y) return 1;
+  }
+  return 0;
+}
 
 // ── App lifecycle ────────────────────────────────────────────────────────────
 app.whenReady().then(async () => {

@@ -289,14 +289,37 @@
         return;
       }
 
-      // Validar que no esté ya invitado o sea miembro
-      if(this._members.some(m => m.email === email)){
+      // Validar (cache local) — UX rápida, evita roundtrip si ya sabemos
+      if(this._members.some(m => (m.email || '').toLowerCase() === email)){
         global.toast?.('Ya es miembro del equipo', 'err');
         return;
       }
-      if(this._invitations.some(i => i.email === email && !i.is_expired)){
+      if(this._invitations.some(i => (i.email || '').toLowerCase() === email && !i.is_expired)){
         global.toast?.('Ya tiene invitación pendiente', 'warn');
         return;
+      }
+
+      // Fase 4 v1.0.6 · Validación server-side fresca antes del INSERT.
+      // Razón: el cache local puede estar stale (otra sesión invitó al mismo email
+      // hace 5s) → INSERT falla con 23505 (unique violation) y el usuario ve un
+      // error críptico. Mejor: GET fresco + traducción del 23505 si la carrera gana.
+      const emailEnc = encodeURIComponent(email);
+      try {
+        const [memberHit, inviteHit] = await Promise.all([
+          global.sbGet('team_members', `email=eq.${emailEnc}&select=id&limit=1`).catch(() => []),
+          global.sbGet('invitations',  `email=eq.${emailEnc}&status=eq.pending&select=id&limit=1`).catch(() => []),
+        ]);
+        if(Array.isArray(memberHit) && memberHit.length > 0){
+          global.toast?.('Ya es miembro del equipo', 'err');
+          return;
+        }
+        if(Array.isArray(inviteHit) && inviteHit.length > 0){
+          global.toast?.('Ya tiene invitación pendiente', 'warn');
+          return;
+        }
+      } catch(err){
+        // Si el precheck falla por red/RLS, no bloqueamos: confiamos en el catch del INSERT
+        console.warn('[UsersView] precheck dedup falló (sigo igual):', err.message || err);
       }
 
       try {
@@ -310,8 +333,15 @@
         global.toast?.(`Invitación enviada a ${email}`, 'success');
         await this.load();
       } catch(err){
-        console.error('[UsersView] sendInvite:', err);
-        global.toast?.('Error: ' + err.message, 'err');
+        // Traducir Postgres unique_violation (23505) o el mensaje "duplicate key" en algo legible
+        const raw = String(err.message || err.code || err);
+        const isDup = /23505|duplicate key|unique constraint|already exists/i.test(raw);
+        if(isDup){
+          global.toast?.(`${email} ya está invitado o es miembro`, 'err');
+        } else {
+          console.error('[UsersView] sendInvite:', err);
+          global.toast?.('Error: ' + (err.message || raw), 'err');
+        }
       }
     },
 
@@ -413,11 +443,7 @@
     }
   };
 
-  // ── Helper local (por si app-madre no lo exporta) ──
-  function escapeHtml(s){
-    if(s === null || s === undefined) return '';
-    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  }
+  // escapeHtml viene de utils.js (window.escapeHtml)
 
   global.UsersView = UsersView;
 })(window);

@@ -333,7 +333,9 @@
     return h;
   }
 
-  function escapeHtml(s){ if(s===null||s===undefined) return ''; return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  // escapeHtml viene de utils.js (window.escapeHtml). Devuelve '—' para null
+  // (antes esta vista devolvía '' — cambio cosmético menor en celdas vacías).
+  // timeAgo es local: formato distinto (incluye "hace " para segundos)
   function timeAgo(iso){
     if(!iso) return '';
     const s = Math.floor((Date.now() - new Date(iso).getTime())/1000);

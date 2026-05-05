@@ -1,7 +1,7 @@
 {
   "name": "dominio-corporativo",
   "productName": "Dominio Corporativo",
-  "version": "1.0.1",
+  "version": "1.0.9",
   "description": "Panel corporativo de Dominio — analytics, negocio, plataforma, organización, sistema y soporte",
   "main": "main.js",
   "author": {
@@ -35,7 +35,10 @@
       "target": [
         {
           "target": "dmg",
-          "arch": ["x64", "arm64"]
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         }
       ]
     },
@@ -52,7 +55,9 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ]
     },
@@ -61,5 +66,8 @@
       "allowToChangeInstallationDirectory": true,
       "shortcutName": "Dominio Corporativo"
     }
+  },
+  "dependencies": {
+    "@sentry/electron": "^7.13.0"
   }
 }

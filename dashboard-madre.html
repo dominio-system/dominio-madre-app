@@ -2,20 +2,52 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Mini-sprint madre 2026-04-23 · Content Security Policy
+     Madre es app interna del founder (super-admin). CSP restringe scripts/connect
+     a Supabase (+ dashboard externo), Resend, n8n Railway, Stripe.
+     No permite Meta graph (madre no envía WA directamente). -->
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
+  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+  font-src 'self' data: https://fonts.gstatic.com;
+  img-src 'self' data: https:;
+  connect-src 'self' https://ywlyuuddqitduqtdttgo.supabase.co wss://ywlyuuddqitduqtdttgo.supabase.co https://*.supabase.co wss://*.supabase.co https://n8n-production-d3a5.up.railway.app https://api.resend.com https://api.stripe.com;
+  frame-src 'none';
+  object-src 'none';
+  base-uri 'self';
+  form-action 'self';
+">
 <title>Dominio Corporativo</title>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 :root{
-  --bg:#0c0c0c;--sidebar:#0f0f0f;--card:#141414;--card2:#1a1a1a;--card3:#1e1e1e;
+  /* Migración v1.0.8 · paleta 1:1 al cliente (mockup C audit final) */
+  --bg:#0a0a0a;--sidebar:#0f0f0f;--card:#111111;--card2:#161616;--card3:#1a1a1a;
   --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.12);
-  --accent:#e8e8e8;
+  --accent:#ffffff;
   --success:#6fcf97;--success-s:rgba(111,207,151,0.10);
-  --warn:#f2c94c;--warn-s:rgba(242,201,76,0.10);
+  --warn:#c9a878;--warn-s:rgba(201,168,120,0.10);
   --danger:#eb5757;--danger-s:rgba(235,87,87,0.10);
-  --text:#f0f0f0;--text2:#aaaaaa;--text3:#777777;
+  --info:#8a9aa8;--info-s:rgba(138,154,168,0.08);
+  --text:#f5f5f5;--text2:#a8a8a8;--text3:#888888;--text4:#666666;
   --sidebar-w:228px;--sidebar-wc:56px;
 }
+/* Light theme override (1:1 cliente) */
+body.theme-light{
+  --bg:#f4f4f4;--sidebar:#ffffff;--card:#ffffff;--card2:#ececec;--card3:#e0e0e0;
+  --border:rgba(0,0,0,0.08);--border2:rgba(0,0,0,0.15);
+  --accent:#111111;
+  --warn:#b8956a;--warn-s:rgba(184,149,106,0.12);
+  --text:#111111;--text2:#555;--text3:#999;--text4:#aaa;
+}
+body.theme-light input,body.theme-light textarea,body.theme-light select{
+  color:#111!important;background:#fff!important;border-color:rgba(0,0,0,0.15)!important;
+}
+body.theme-light .btn.primary{background:#111;color:#fff;border-color:#111;}
+body.theme-light .btn.primary:hover{background:#000;}
 *{margin:0;padding:0;box-sizing:border-box;}
 body{background:var(--bg);color:var(--text);font-family:'Geist',sans-serif;display:flex;height:100vh;overflow:hidden;font-size:13px;-webkit-font-smoothing:antialiased;-webkit-app-region:no-drag;}
 
@@ -248,6 +280,100 @@ body.collapsed .user-info{opacity:0;width:0;}
 .toast.success{border-left:3px solid var(--success);}
 .toast.warn{border-left:3px solid var(--warn);}
 .toast.err{border-left:3px solid var(--danger);}
+.toast.info{border-left:3px solid var(--info);}
+
+/* ═══════════════ Migración v1.0.8 · Topbar widgets ═══════════════ */
+.topbar-widgets{display:flex;align-items:center;gap:8px;margin-left:auto;padding-right:14px;}
+
+/* TZ chip */
+.tz-chip{display:flex;align-items:center;gap:7px;padding:5px 10px;border-radius:5px;border:1px solid var(--border);background:var(--card);font-size:10px;color:var(--text2);font-family:'Geist Mono',monospace;letter-spacing:0.3px;cursor:pointer;transition:all .15s;}
+.tz-chip:hover{border-color:var(--border2);color:var(--text);}
+.tz-chip .tz-dot{width:5px;height:5px;border-radius:50%;background:var(--success);animation:tz-pulse 2s infinite;}
+.tz-chip .tz-time{color:var(--text);font-weight:600;}
+.tz-chip .tz-sep{color:var(--text4);}
+.tz-chip.flash{animation:tz-flash 600ms ease-out;}
+@keyframes tz-pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+@keyframes tz-flash{0%{background:var(--success-s);border-color:rgba(111,207,151,0.4);}100%{background:var(--card);border-color:var(--border);}}
+
+/* Bell button (notif + theme + help) */
+.bell{position:relative;width:30px;height:30px;border:1px solid var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:var(--card);color:var(--text2);transition:all 160ms;}
+.bell:hover{color:var(--text);border-color:var(--border2);background:var(--card2);}
+.bell svg{display:block;transition:transform 220ms cubic-bezier(.4,1.5,.5,1);}
+.bell-badge{position:absolute;top:-5px;right:-5px;min-width:16px;height:16px;border-radius:8px;background:var(--danger);color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 4px;border:2px solid var(--sidebar);box-sizing:border-box;line-height:1;}
+.bell.has-notif svg{animation:bell-wiggle 1.2s ease-in-out 0.5s 1;}
+@keyframes bell-wiggle{0%,100%{transform:rotate(0);}20%{transform:rotate(-12deg);}40%{transform:rotate(10deg);}60%{transform:rotate(-6deg);}80%{transform:rotate(3deg);}}
+
+/* Notif drawer */
+.notif-drawer{position:fixed;top:60px;right:14px;width:380px;max-width:calc(100vw - 40px);max-height:min(720px,calc(100vh - 80px));background:var(--sidebar);border:1px solid var(--border);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,0.55),0 4px 12px rgba(0,0,0,0.35);display:flex;flex-direction:column;z-index:400;opacity:0;transform:translateY(-8px) scale(0.97);transform-origin:top right;pointer-events:none;transition:opacity 180ms ease,transform 200ms cubic-bezier(.18,.89,.32,1.28);}
+body.notif-open .notif-drawer{opacity:1;transform:translateY(0) scale(1);pointer-events:auto;}
+.notif-overlay{position:fixed;inset:0;background:transparent;z-index:399;pointer-events:none;}
+body.notif-open .notif-overlay{pointer-events:auto;}
+.notif-head{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.notif-title{flex:1;font-size:13px;font-weight:600;}
+.notif-title span{display:block;font-size:9px;color:var(--text3);font-family:'Geist Mono',monospace;letter-spacing:1.2px;margin-top:3px;text-transform:uppercase;}
+.notif-mark-read{background:transparent;border:none;color:var(--text3);cursor:pointer;padding:5px 9px;font-size:10px;font-family:'Geist Mono',monospace;letter-spacing:0.5px;border-radius:5px;}
+.notif-mark-read:hover{color:var(--text);background:var(--card2);}
+.notif-close{background:transparent;border:0;color:var(--text3);cursor:pointer;width:26px;height:26px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:14px;}
+.notif-close:hover{color:var(--text);background:var(--card2);}
+.notif-filter{padding:10px 16px;border-bottom:1px solid var(--border);display:flex;gap:6px;overflow-x:auto;}
+.notif-filter::-webkit-scrollbar{display:none;}
+.notif-filter-btn{flex-shrink:0;padding:4px 10px;border:1px solid var(--border);background:transparent;color:var(--text3);border-radius:10px;font-size:10px;font-family:'Geist Mono',monospace;cursor:pointer;white-space:nowrap;}
+.notif-filter-btn.active{background:rgba(255,255,255,0.05);border-color:rgba(255,255,255,0.3);color:var(--text);}
+.notif-list{flex:1;overflow-y:auto;padding:10px;}
+.notif-list::-webkit-scrollbar{width:4px;}
+.notif-list::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+.notif-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:11px 13px;margin-bottom:8px;cursor:pointer;position:relative;transition:background 150ms,border-color 150ms;}
+.notif-card:hover{background:var(--card2);border-color:rgba(255,255,255,0.18);}
+.notif-card.unread{border-left:2px solid var(--accent);}
+.notif-card-dismiss{position:absolute;top:6px;right:6px;width:20px;height:20px;border-radius:10px;border:none;background:transparent;color:var(--text3);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;line-height:1;opacity:0;transition:opacity 150ms,background 150ms,color 150ms;}
+.notif-card:hover .notif-card-dismiss{opacity:1;}
+.notif-card-dismiss:hover{background:var(--danger-s);color:var(--danger);}
+.notif-row{display:flex;align-items:flex-start;gap:10px;}
+.notif-icon{flex-shrink:0;width:26px;height:26px;border-radius:7px;background:var(--card2);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;}
+.notif-icon.danger{background:var(--danger-s);border-color:rgba(235,87,87,0.3);color:var(--danger);}
+.notif-icon.warn{background:var(--warn-s);border-color:rgba(201,168,120,0.3);color:var(--warn);}
+.notif-icon.ok{background:var(--success-s);border-color:rgba(111,207,151,0.3);color:var(--success);}
+.notif-icon.info{background:var(--info-s);border-color:rgba(138,154,168,0.3);color:var(--info);}
+.notif-body{flex:1;min-width:0;padding-right:14px;}
+.notif-card-title{font-size:12px;font-weight:500;line-height:1.4;}
+.notif-meta{font-size:10px;color:var(--text3);font-family:'Geist Mono',monospace;margin-top:2px;letter-spacing:0.3px;}
+.notif-body-text{font-size:11px;color:var(--text2);line-height:1.5;margin-top:4px;}
+
+/* Help modal · sin drawer · solo modal centrado */
+.help-overlay{position:fixed;inset:0;z-index:520;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;}
+.help-overlay.active{display:flex;}
+.help-modal{background:var(--card);border:1px solid var(--border2);border-radius:10px;width:520px;max-width:92vw;overflow:hidden;}
+.help-head{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;}
+.help-title{flex:1;font-size:14px;font-weight:500;}
+.help-section{padding:16px 20px;border-bottom:1px solid var(--border);}
+.help-section:last-child{border-bottom:none;}
+.help-section-label{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--text4);margin-bottom:10px;font-weight:600;}
+.help-kbd-grid{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:11px;align-items:center;}
+.help-kbd{font-family:'Geist Mono',monospace;background:var(--card2);border:1px solid var(--border);padding:2px 7px;border-radius:3px;font-size:10px;color:var(--text);}
+.help-link{display:flex;align-items:center;gap:8px;color:var(--text);text-decoration:none;padding:6px;border-radius:5px;transition:background .15s;font-size:12px;}
+.help-link:hover{background:var(--card2);}
+
+/* Search overlay ⌘K */
+.search-overlay{position:fixed;inset:0;z-index:560;background:rgba(0,0,0,0.55);backdrop-filter:blur(6px);display:none;align-items:flex-start;justify-content:center;padding-top:80px;}
+.search-overlay.active{display:flex;}
+.search-box{width:560px;max-width:92vw;background:var(--card);border:1px solid var(--border2);border-radius:12px;overflow:hidden;box-shadow:0 25px 70px rgba(0,0,0,0.6);}
+.search-input-wrap{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--border);}
+.search-input{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-size:14px;font-family:inherit;}
+.search-input::placeholder{color:var(--text4);}
+.search-results{max-height:480px;overflow-y:auto;}
+.search-results::-webkit-scrollbar{width:6px;}
+.search-results::-webkit-scrollbar-thumb{background:var(--card3);border-radius:3px;}
+.search-cat{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--text4);padding:10px 18px 6px;font-weight:600;background:var(--bg);}
+.search-item{display:flex;align-items:center;gap:12px;padding:10px 18px;cursor:pointer;border-left:2px solid transparent;transition:background .12s;}
+.search-item:hover,.search-item.kbd-active{background:var(--card2);border-left-color:var(--accent);}
+.search-item-icon{width:24px;height:24px;border-radius:6px;background:var(--card2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:600;}
+.search-item-body{flex:1;min-width:0;}
+.search-item-title{font-size:12px;font-weight:500;line-height:1.3;}
+.search-item-sub{font-size:10px;color:var(--text3);font-family:'Geist Mono',monospace;margin-top:2px;}
+.search-item-arrow{color:var(--text4);font-size:12px;}
+.search-empty{padding:36px 20px;text-align:center;color:var(--text3);font-size:12px;}
+.search-foot{border-top:1px solid var(--border);padding:10px 18px;display:flex;gap:14px;font-size:10px;color:var(--text4);font-family:'Geist Mono',monospace;}
+
 </style>
 </head>
 <body>
@@ -331,6 +457,13 @@ body.collapsed .user-info{opacity:0;width:0;}
       </div>
     </div>
 
+    <div class="nav-group" data-group="config">
+      <div class="group-head" onclick="toggleGroup('config')"><div class="group-chev"><svg viewBox="0 0 8 8" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3l2 2 2-2"/></svg></div><div class="group-label">Preferencias</div><div class="group-count">1</div></div>
+      <div class="group-items">
+        <div class="nav-item" data-view="settings" data-label="Configuración" onclick="go('settings')"><span class="nav-icon"><svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="6.5" cy="6.5" r="2"/><path d="M6.5 1v1.5M6.5 10.5v1.5M11 6.5h1.5M.5 6.5H1.5M9.7 3.3l1-1M2.3 10.7l1-1M9.7 9.7l1 1M2.3 2.3l1 1"/></svg></span><span class="nav-text">Configuración</span></div>
+      </div>
+    </div>
+
   </div>
 
   <div class="sidebar-footer">
@@ -343,10 +476,95 @@ body.collapsed .user-info{opacity:0;width:0;}
 <div class="wrapper">
   <div class="topbar">
     <div class="crumb"><span>Dominio Corporativo</span><span class="sep">›</span><span class="current" id="crumb-current">Command Center</span><span class="date" id="crumb-date">— Abril 2026</span></div>
+    <!-- Migración v1.0.8 · Widgets topbar (TZ + Theme + Help + Notif) -->
+    <div class="topbar-widgets">
+      <div class="tz-chip" id="tz-chip" onclick="goView('settings')" title="Click para configurar zona horaria">
+        <span class="tz-dot"></span>
+        <span class="tz-time" id="tz-time">--:--</span>
+        <span class="tz-sep">·</span>
+        <span class="tz-zone" id="tz-zone">--</span>
+        <span class="tz-sep">·</span>
+        <span class="dim" id="tz-sync" style="color:var(--text3);">sync —</span>
+      </div>
+      <button class="bell" id="theme-btn" onclick="toggleTheme()" title="Cambiar tema (light/dark)" aria-label="Tema">
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" id="theme-icon-dark"><path d="M11 8.5A4.5 4.5 0 116 3a3.5 3.5 0 005 5.5z"/></svg>
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" id="theme-icon-light" style="display:none;"><circle cx="7" cy="7" r="2.5"/><path d="M7 1v1.5M7 11.5V13M13 7h-1.5M2.5 7H1M11.2 2.8l-1 1M3.8 10.2l-1 1M11.2 11.2l-1-1M3.8 3.8l-1-1"/></svg>
+      </button>
+      <button class="bell" onclick="openHelp()" title="Ayuda y soporte (?)" aria-label="Ayuda">
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="7" cy="7" r="5.5"/><path d="M5.3 5.3a1.7 1.7 0 113.4 0c0 1.2-1.7 1.4-1.7 2.7"/><circle cx="7" cy="10.2" r="0.5" fill="currentColor"/></svg>
+      </button>
+      <button class="bell" id="notif-bell" onclick="toggleNotif()" title="Notificaciones" aria-label="Notificaciones">
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3.5 5.5a3.5 3.5 0 117 0v2.5l1 2.5h-9l1-2.5z"/><path d="M5.5 11a1.5 1.5 0 003 0"/></svg>
+        <span class="bell-badge" id="notif-badge" style="display:none;">0</span>
+      </button>
+    </div>
     <div class="top-right">
       <div class="period-tabs"><div class="period-tab">7D</div><div class="period-tab active">30D</div><div class="period-tab">90D</div><div class="period-tab">YTD</div></div>
       <div class="pill pill-demo" id="mode-pill">DEMO</div>
       <div class="pill pill-ok"><span class="pill-dot"></span>SISTEMA ACTIVO</div>
+    </div>
+  </div>
+
+  <!-- Notif drawer + overlay (popover anclado al bell) -->
+  <div class="notif-overlay" onclick="closeNotif()"></div>
+  <aside class="notif-drawer">
+    <div class="notif-head">
+      <div class="notif-title">Notificaciones<span id="notif-sub">— sin leer</span></div>
+      <button class="notif-mark-read" onclick="markAllNotifsRead()">Marcar leídas</button>
+      <button class="notif-close" onclick="closeNotif()">×</button>
+    </div>
+    <div class="notif-filter">
+      <button class="notif-filter-btn active" data-f="all" onclick="filterNotifs('all')">Todas</button>
+      <button class="notif-filter-btn" data-f="unread" onclick="filterNotifs('unread')">Sin leer</button>
+      <button class="notif-filter-btn" data-f="critical" onclick="filterNotifs('critical')">Críticas</button>
+      <button class="notif-filter-btn" data-f="business" onclick="filterNotifs('business')">Negocio</button>
+      <button class="notif-filter-btn" data-f="system" onclick="filterNotifs('system')">Sistema</button>
+    </div>
+    <div class="notif-list" id="notif-list"></div>
+  </aside>
+
+  <!-- Help modal -->
+  <div class="help-overlay" id="help-overlay" onclick="if(event.target.id==='help-overlay')closeHelp()">
+    <div class="help-modal">
+      <div class="help-head">
+        <div class="help-title">Ayuda y soporte</div>
+        <button class="notif-close" onclick="closeHelp()">×</button>
+      </div>
+      <div class="help-section">
+        <div class="help-section-label">ATAJOS DE TECLADO</div>
+        <div class="help-kbd-grid">
+          <span class="help-kbd">⌘K</span><span style="color:var(--text3);">búsqueda global</span>
+          <span class="help-kbd">⌘\</span><span style="color:var(--text3);">colapsar/expandir sidebar</span>
+          <span class="help-kbd">?</span><span style="color:var(--text3);">abrir esta ventana</span>
+          <span class="help-kbd">esc</span><span style="color:var(--text3);">cerrar modal/drawer</span>
+          <span class="help-kbd">⌘R</span><span style="color:var(--text3);">recargar dashboard</span>
+        </div>
+      </div>
+      <div class="help-section">
+        <div class="help-section-label">RECURSOS</div>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <a href="#" class="help-link" onclick="event.preventDefault();window.electronAPI?.openExternal('https://app.supabase.com');">🗄 <span style="flex:1;">Supabase Dashboard</span><span style="color:var(--text4);font-size:10px;">↗</span></a>
+          <a href="#" class="help-link" onclick="event.preventDefault();window.electronAPI?.openExternal('https://n8n-production-d3a5.up.railway.app');">⚡ <span style="flex:1;">n8n workflows</span><span style="color:var(--text4);font-size:10px;">↗</span></a>
+          <a href="#" class="help-link" onclick="event.preventDefault();window.electronAPI?.openExternal('https://dashboard.stripe.com');">💳 <span style="flex:1;">Stripe Dashboard</span><span style="color:var(--text4);font-size:10px;">↗</span></a>
+          <a href="#" class="help-link" onclick="event.preventDefault();window.electronAPI?.openExternal('https://github.com/dominio-system');">📁 <span style="flex:1;">GitHub repos</span><span style="color:var(--text4);font-size:10px;">↗</span></a>
+        </div>
+      </div>
+      <div class="help-section" style="display:flex;gap:8px;">
+        <button class="btn primary" onclick="window.electronAPI?.openExternal('mailto:hola@dominiosystem.com');" style="font-size:11px;">📧 Email a soporte</button>
+        <button class="btn ghost" onclick="window.electronAPI?.openDevTools();closeHelp();" style="font-size:11px;">Abrir DevTools</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Search overlay ⌘K -->
+  <div class="search-overlay" id="search-overlay" onclick="if(event.target.id==='search-overlay')closeSearch()">
+    <div class="search-box">
+      <div class="search-input-wrap">
+        <svg width="14" height="14" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text3);"><circle cx="5.5" cy="5.5" r="3.5"/><path d="M11 11l-3-3"/></svg>
+        <input type="text" class="search-input" id="search-input" placeholder="Buscar clientes, leads, invoices, audit…" oninput="renderSearchResults()" onkeydown="searchKeyNav(event)">
+      </div>
+      <div class="search-results" id="search-results"></div>
+      <div class="search-foot"><span>↑↓ navegar</span><span>↵ abrir</span><span>esc cerrar</span></div>
     </div>
   </div>
 
@@ -361,19 +579,50 @@ body.collapsed .user-info{opacity:0;width:0;}
         <div class="kpi-card"><div class="kpi-label">CLIENTES ACTIVOS</div><div class="kpi-value" id="kpi-clients">0</div><div class="kpi-trend up" id="kpi-clients-trend">—</div></div>
         <div class="kpi-card"><div class="kpi-label">CHURN RATE</div><div class="kpi-value" id="kpi-churn">0.0%</div><div class="kpi-trend" id="kpi-churn-trend">estable</div></div>
       </div>
-      <div class="sec-head"><span class="sec-label">DOMINIOS</span><span class="sec-title">Pulso por área</span><span class="sec-meta">6 activos · click para entrar</span></div>
-      <div class="cc-grid">
-        <div class="cc-card" onclick="go('overview')"><div class="cc-head"><span class="cc-tag">OPERACION · ANALYTICS</span><div class="cc-status ok"><span class="d"></span>OK</div></div><div class="cc-body"><div class="cc-main"><div class="cc-value" id="cc-leads">0</div><div class="cc-unit">leads 30D</div></div><div class="mini-bars" data-bars="3,4,3,5,4,6,5,7,6,8,7,9,8,10"></div><div class="cc-meta"><div><div class="cc-meta-label">CITAS</div><div class="cc-meta-val" id="cc-citas">0</div></div><div><div class="cc-meta-label">CONV.</div><div class="cc-meta-val" id="cc-conv">0%</div></div></div></div><div class="cc-foot"><a>VER OVERVIEW →</a></div></div>
-        <div class="cc-card" onclick="go('revenue')"><div class="cc-head"><span class="cc-tag">NEGOCIO · FINANCE</span><div class="cc-status ok"><span class="d"></span>LIVE</div></div><div class="cc-body"><div class="cc-main"><div class="cc-value" id="cc-revenue">$0</div><div class="cc-unit">MRR</div></div><div class="mini-bars" data-bars="4,5,4,6,5,7,8,7,9,8,10,9,11,10"></div><div class="cc-meta"><div><div class="cc-meta-label">ARR</div><div class="cc-meta-val" id="cc-arr">$0</div></div><div><div class="cc-meta-label">RPC</div><div class="cc-meta-val" id="cc-rpc">$0</div></div></div></div><div class="cc-foot"><a>VER REVENUE →</a></div></div>
-        <div class="cc-card" onclick="go('integrations')"><div class="cc-head"><span class="cc-tag">PLATAFORMA · API</span><div class="cc-status warn"><span class="d"></span>CONFIG</div></div><div class="cc-body"><div class="cc-main"><div class="cc-value">6</div><div class="cc-unit">integraciones</div></div><div class="mini-bars" data-bars="5,6,6,7,7,8,7,9,8,8,9,10,9,10"></div><div class="cc-meta"><div><div class="cc-meta-label">STRIPE</div><div class="cc-meta-val">TEST</div></div><div><div class="cc-meta-label">N8N</div><div class="cc-meta-val ok">LIVE</div></div></div></div><div class="cc-foot"><a>VER INTEGRACIONES →</a></div></div>
-        <div class="cc-card" onclick="go('users')"><div class="cc-head"><span class="cc-tag">ORGANIZACIÓN · TEAM</span><div class="cc-status ok"><span class="d"></span>OK</div></div><div class="cc-body"><div class="cc-main"><div class="cc-value">1</div><div class="cc-unit">miembro</div></div><div class="mini-bars" data-bars="6,6,7,7,7,8,8,8,9,9,10,10,11,14"></div><div class="cc-meta"><div><div class="cc-meta-label">ROL</div><div class="cc-meta-val">OWNER</div></div><div><div class="cc-meta-label">ROLES</div><div class="cc-meta-val">4</div></div></div></div><div class="cc-foot"><a>VER EQUIPO →</a></div></div>
-        <div class="cc-card" onclick="go('status')"><div class="cc-head"><span class="cc-tag">SISTEMA · MONITOR</span><div class="cc-status ok"><span class="d"></span>OK</div></div><div class="cc-body"><div class="cc-main"><div class="cc-value">99.9%</div><div class="cc-unit">uptime</div></div><div class="mini-bars" data-bars="10,10,10,9,10,10,8,10,10,10,10,10,10,10"></div><div class="cc-meta"><div><div class="cc-meta-label">INCID.</div><div class="cc-meta-val">0</div></div><div><div class="cc-meta-label">AUDIT</div><div class="cc-meta-val">—</div></div></div></div><div class="cc-foot"><a>VER MONITOR →</a></div></div>
-        <div class="cc-card" onclick="go('tickets')"><div class="cc-head"><span class="cc-tag">SOPORTE · DOCS</span><div class="cc-status ok"><span class="d"></span>OK</div></div><div class="cc-body"><div class="cc-main"><div class="cc-value">0</div><div class="cc-unit">tickets</div></div><div class="mini-bars" data-bars="5,4,6,5,3,4,5,6,4,5,4,3,4,4"></div><div class="cc-meta"><div><div class="cc-meta-label">SLA</div><div class="cc-meta-val">—</div></div><div><div class="cc-meta-label">DOCS</div><div class="cc-meta-val">—</div></div></div></div><div class="cc-foot"><a>VER TICKETS →</a></div></div>
+      <!-- Bar chart Revenue por día con month navigator (migrado de mockup v2) -->
+      <div class="panel cc2-chart-panel" style="margin-top:14px;">
+        <div class="panel-head" style="display:flex;align-items:center;gap:10px;">
+          <div class="panel-title">Revenue por día</div>
+          <div class="month-nav" style="margin-left:auto;display:inline-flex;align-items:center;gap:2px;background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:2px;">
+            <button id="cc2-mn-prev" onclick="cc2NavMonth(-1)" style="background:transparent;border:0;color:var(--text2);cursor:pointer;padding:4px 9px;border-radius:4px;font-size:11px;font-family:inherit;min-width:24px;">‹</button>
+            <span class="cc2-mn-current" id="cc2-mn-current" style="font-size:11px;font-weight:600;color:var(--text);padding:4px 10px;min-width:108px;text-align:center;font-family:'Geist Mono',monospace;">—</span>
+            <button id="cc2-mn-next" onclick="cc2NavMonth(1)" style="background:transparent;border:0;color:var(--text2);cursor:pointer;padding:4px 9px;border-radius:4px;font-size:11px;font-family:inherit;min-width:24px;">›</button>
+            <button class="cc2-today-btn" onclick="cc2NavToday()" style="background:transparent;border:0;color:var(--text3);cursor:pointer;padding:4px 7px;border-radius:4px;font-size:9px;font-family:inherit;border-left:1px solid var(--border);margin-left:2px;letter-spacing:0.5px;text-transform:uppercase;">HOY</button>
+          </div>
+        </div>
+        <div class="panel-body" style="padding:16px;">
+          <div class="cc2-chart-wrap" style="position:relative;">
+            <div class="cc2-bar-chart" id="cc2-bar-chart" style="height:180px;display:flex;align-items:flex-end;gap:3px;padding:8px 0 4px;position:relative;"></div>
+            <div class="cc2-bar-tooltip" id="cc2-bar-tooltip" style="position:absolute;background:var(--card3);border:1px solid var(--border2);border-radius:7px;padding:8px 12px;font-size:11px;color:var(--text);pointer-events:none;transform:translateX(-50%);white-space:nowrap;opacity:0;transition:opacity 120ms;z-index:10;box-shadow:0 6px 18px rgba(0,0,0,0.5);top:8px;">
+              <div class="bt-date" id="cc2-bt-date" style="color:var(--text3);font-family:'Geist Mono',monospace;font-size:9px;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">—</div>
+              <div class="bt-value" id="cc2-bt-value" style="font-size:14px;font-weight:700;font-family:'Geist Mono',monospace;">$0</div>
+              <div class="bt-meta" id="cc2-bt-meta" style="color:var(--text3);font-size:10px;margin-top:2px;">—</div>
+            </div>
+          </div>
+          <div class="cc2-bar-axis" id="cc2-bar-axis" style="display:flex;justify-content:space-between;font-size:9px;color:var(--text3);font-family:'Geist Mono',monospace;letter-spacing:0.5px;margin-top:4px;padding-top:6px;border-top:1px solid var(--border);"></div>
+          <div style="margin-top:14px;display:flex;gap:24px;font-size:11px;flex-wrap:wrap;">
+            <div><span class="dim">Total mes:</span> <strong id="cc2-m-total" style="font-family:'Geist Mono',monospace;margin-left:6px;">$0</strong></div>
+            <div><span class="dim">Promedio/día:</span> <strong id="cc2-m-avg" style="font-family:'Geist Mono',monospace;margin-left:6px;">$0</strong></div>
+            <div><span class="dim">Mejor día:</span> <strong id="cc2-m-best" style="font-family:'Geist Mono',monospace;margin-left:6px;">—</strong></div>
+            <div><span class="dim">Días con venta:</span> <strong id="cc2-m-active" style="font-family:'Geist Mono',monospace;margin-left:6px;">0</strong></div>
+          </div>
+        </div>
       </div>
 
-      <div class="sec-head"><span class="sec-label">ACTIVIDAD</span><span class="sec-title">Feed global</span><span class="sec-meta" id="feed-meta">cargando...</span></div>
-      <div class="panel" id="feed-panel">
-        <div class="feed-row"><div class="feed-icon">·</div><div class="feed-body dim">Esperando conexión con Supabase...</div><div class="feed-time">—</div></div>
+      <!-- Activity feed + Health table (2 columnas) -->
+      <div class="cc2-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;">
+        <div class="panel">
+          <div class="panel-head"><div class="panel-title">Actividad reciente</div><div class="panel-sub" id="cc2-feed-meta">últimos 8</div></div>
+          <div id="cc2-feed">
+            <div class="feed-row"><div class="feed-icon">·</div><div class="feed-body dim">Esperando datos…</div><div class="feed-time">—</div></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div class="panel-title">Health por servicio</div><div class="panel-sub">uptime 30d</div></div>
+          <div id="cc2-health" style="padding:0;">
+            <div style="padding:14px;color:var(--text3);font-size:11px;">Esperando datos…</div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -500,12 +749,15 @@ body.collapsed .user-info{opacity:0;width:0;}
     <div class="view" data-view="audit"><div class="page-head"><div><div class="page-title">Auditoría</div><div class="page-sub" id="audit-sub">SISTEMA · LOG INMUTABLE</div></div></div><div class="panel"><div class="panel-head"><div class="panel-title">Últimas 50 acciones</div></div><table class="tbl" id="audit-table"><thead><tr><th>Acción</th><th>Entidad</th><th>Resultado</th><th>Actor</th><th>Timestamp</th></tr></thead><tbody><tr><td colspan="5" class="dim" style="text-align:center;padding:24px">Cargando…</td></tr></tbody></table></div></div>
     <div class="view" data-view="docs"></div>
     <div class="view" data-view="tickets"></div>
+    <div class="view" data-view="settings"></div>
 
   </div>
 </div>
 
 <div class="toast" id="toast"></div>
 
+<!-- Utils compartidos · Fase 2 v1.0.7 (DEBE cargar antes que cualquier *-view.js) -->
+<script src="assets/js/utils.js"></script>
 <!-- Fase 1 modules (deben cargarse ANTES del script principal) -->
 <script src="assets/js/rbac.js"></script>
 <script src="assets/js/payments.js"></script>
@@ -523,6 +775,18 @@ body.collapsed .user-info{opacity:0;width:0;}
 <script src="assets/js/webhooks-view.js"></script>
 <script src="assets/js/tickets-view.js"></script>
 <script src="assets/js/docs-view.js"></script>
+<!-- Fase 1B/2 v1.0.7 · Sistema (Status, Incidents, Audit) -->
+<script src="assets/js/status-view.js"></script>
+<script src="assets/js/incidents-view.js"></script>
+<script src="assets/js/audit-view.js"></script>
+<!-- Fase 5 v1.0.7 · Configuración (updates, cuenta, sistema, conexiones, about) -->
+<script src="assets/js/settings-view.js"></script>
+<!-- Migración v1.0.8 · Topbar widgets: TZ chip, theme toggle, help modal, notif drawer, ⌘K search -->
+<script src="assets/js/topbar-extras.js"></script>
+<!-- Migración v1.0.9 · Command Center v2: bar chart month nav + activity feed + health table -->
+<script src="assets/js/command-center-v2.js"></script>
+<!-- Migración v1.0.9 · Detail modals: cliente (5 tabs), invoice, confirm dialog reusable -->
+<script src="assets/js/detail-modals.js"></script>
 <!-- Fase 4: polish (Command Center real, sparklines, heat-bars, realtime, cache) -->
 <script src="assets/js/madre-polish.js"></script>
 
@@ -661,6 +925,8 @@ function go(view){
   renderBars();
   setTimeout(()=>initChartsForView(view),50);
 
+  // Migración v1.0.9 · Command Center v2 (bar chart month nav + activity + health)
+  if(view==='command' && window.CommandCenterV2) window.CommandCenterV2.render();
   // Views con render dinámico (Fase 1)
   if(view==='users' && window.UsersView) UsersView.render();
   if(view==='roles' && window.RolesView) RolesView.render();
@@ -676,6 +942,14 @@ function go(view){
   if(view==='webhooks' && window.WebhooksView) WebhooksView.render();
   if(view==='tickets'  && window.TicketsView)  TicketsView.render();
   if(view==='docs'     && window.DocsView)     DocsView.render();
+  // Fase 1B/2 v1.0.7 · Sistema (Status, Incidents, Audit)
+  if(view==='status'    && window.StatusView)    StatusView.render();
+  if(view==='incidents' && window.IncidentsView) IncidentsView.render();
+  if(view==='audit'     && window.AuditView)     AuditView.render();
+  // Fase 5 v1.0.7 · Configuración
+  if(view==='settings'  && window.SettingsView)  SettingsView.render();
+  // Cleanup auto-refresh de Status si salimos de la view
+  if(view !== 'status' && window.StatusView) window.StatusView.stopRefresh();
   // Revenue view: refrescar con MRR real al entrar
   if(view==='revenue') loadRevenueReal();
 

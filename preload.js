@@ -21,4 +21,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onSessionRefreshed: (callback) => {
     ipcRenderer.on('session-refreshed', (_, session) => callback(session));
   },
+
+  // ─── Fase 5 v1.0.7 · Vista Configuración ──────────────────────────
+  // Metadata estática de la app (versión, plataforma, paths). Read-only.
+  appInfo: () => ipcRenderer.invoke('app-info'),
+
+  // Verifica si hay nueva versión publicada en GitHub Releases.
+  // Devuelve { status, current, latest, releaseNotes, dmgUrl, ... }
+  checkUpdates: () => ipcRenderer.invoke('check-updates'),
+
+  // Abre las DevTools del dashboard (modo detach) — útil para debugging
+  // sin necesidad de reabrir la app con --dev.
+  openDevTools: () => ipcRenderer.send('open-devtools'),
 });

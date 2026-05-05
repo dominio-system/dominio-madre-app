@@ -45,20 +45,27 @@
   async function loadCommandCenterReal(){
     try {
       const [cc, sparkline] = await Promise.all([
-        Cache.get('v_command_center', () => global.sbGet('v_command_center', 'select=*').then(r => r?.[0] || {})),
+        // Fase 4 v1.0.6 · `&limit=1` evita transferir filas extra si la vista
+        // alguna vez devuelve >1 row. `r?.[0] || null` (no `{}`) hace que el
+        // guard `if(!cc)` abajo realmente dispare cuando no hay filas.
+        Cache.get('v_command_center', () => global.sbGet('v_command_center', 'select=*&limit=1').then(r => r?.[0] || null)),
         Cache.get('v_kpi_sparkline', () => global.sbGet('v_kpi_sparkline', 'select=*&order=day').catch(()=>[]))
       ]);
 
-      if(!cc){ return; }
+      if(!cc){
+        console.warn('[polish] v_command_center vacío · skipping render (la vista probablemente no tiene datos todavía)');
+        return;
+      }
       const $ = (id) => document.getElementById(id);
       const fmt = (n) => '$' + Math.round(Number(n)||0).toLocaleString('en');
+      const num = (n) => Number(n) || 0;  // null/undefined/NaN → 0
 
       // KPI strip (Command Center)
       if($('kpi-revenue')) $('kpi-revenue').textContent = fmt(cc.mrr_total);
       if($('kpi-mrr'))     $('kpi-mrr').textContent     = fmt(cc.mrr_total);
-      if($('kpi-clients')) $('kpi-clients').textContent = cc.active_clients || 0;
-      if($('kpi-churn'))   $('kpi-churn').textContent   = (cc.churn_rate_pct || 0) + '%';
-      if($('kpi-clients-trend')) $('kpi-clients-trend').textContent = `${cc.active_clients} activos`;
+      if($('kpi-clients')) $('kpi-clients').textContent = num(cc.active_clients);
+      if($('kpi-churn'))   $('kpi-churn').textContent   = num(cc.churn_rate_pct) + '%';
+      if($('kpi-clients-trend')) $('kpi-clients-trend').textContent = `${num(cc.active_clients)} activos`;
 
       // Card OPERACION
       if($('cc-leads')) $('cc-leads').textContent = cc.leads_30d || 0;
@@ -70,12 +77,13 @@
       if($('cc-arr'))     $('cc-arr').textContent     = fmt(cc.arr_total);
       if($('cc-rpc'))     $('cc-rpc').textContent     = fmt(cc.arpu);
 
-      // Mini-bars reales desde sparkline
-      patchMiniBars('cc-card-operacion',  sparkline.map(d => d.leads + d.appointments));
-      patchMiniBars('cc-card-negocio',    sparkline.map(d => d.revenue));
-      patchMiniBars('cc-card-plataforma', sparkline.map(d => d.clients_new));
-      patchMiniBars('cc-card-sistema',    sparkline.map(d => 10)); // uptime, fijo
-      patchMiniBars('cc-card-soporte',    sparkline.map(d => d.tickets_new));
+      // Mini-bars reales desde sparkline · null-safe (sparkline puede ser [] si la vista no devolvió filas)
+      const sl = Array.isArray(sparkline) ? sparkline : [];
+      patchMiniBars('cc-card-operacion',  sl.map(d => num(d.leads) + num(d.appointments)));
+      patchMiniBars('cc-card-negocio',    sl.map(d => num(d.revenue)));
+      patchMiniBars('cc-card-plataforma', sl.map(d => num(d.clients_new)));
+      patchMiniBars('cc-card-sistema',    sl.map(() => 10)); // uptime, fijo
+      patchMiniBars('cc-card-soporte',    sl.map(d => num(d.tickets_new)));
 
       // Card PLATAFORMA · integraciones
       patchPlatformCard(cc);
@@ -336,7 +344,7 @@
               ? '<span class="chip chip-warn">TRIAL</span>'
               : '<span class="chip chip-off">' + (c.client_status || '—').toUpperCase() + '</span>';
         return `
-          <div class="client-row">
+          <div class="client-row" onclick="window.openClienteDetail && openClienteDetail('${escapeHtml(c.id || c.email || '')}')" style="cursor:pointer;">
             <div class="client-name">
               <div class="client-avatar">${escapeHtml(initial)}</div>
               <div>
@@ -389,63 +397,78 @@
 
     init(){
       if(this._initialized) return;
-      const supabaseUrl = global.SUPABASE_URL;
-      const supabaseAnon = global.SUPABASE_ANON;
-      const token = (global.SESSION?.accessToken) || supabaseAnon;
-      if(!supabaseUrl || !global.supabase) {
-        console.warn('[polish] Supabase SDK no disponible, realtime deshabilitado');
-        return;
+      // v1.0.3 — try/catch wrapper · si Supabase SDK no carga o fallan suscripciones,
+      // la app sigue funcional sin realtime (degradación controlada en lugar de crash).
+      try {
+        const supabaseUrl = global.SUPABASE_URL;
+        const supabaseAnon = global.SUPABASE_ANON;
+        const token = (global.SESSION?.accessToken) || supabaseAnon;
+        if(!supabaseUrl || !global.supabase) {
+          console.warn('[polish] Supabase SDK no disponible · realtime deshabilitado');
+          return;
+        }
+
+        // Mini-sprint madre 2026-04-23: eventsPerSecond 5 → 100 + heartbeat + reconnect
+        // exponencial. Antes se perdían eventos en picos; ahora mismo throughput que
+        // dominio-client-app post Sprint 1B.
+        const sb = global.supabase.createClient(supabaseUrl, supabaseAnon, {
+          realtime: {
+            params: { eventsPerSecond: 100 },
+            heartbeatIntervalMs: 30000,
+            reconnectAfterMs: (tries) => Math.min(1000 * Math.pow(2, Math.min(tries, 6)), 30000),
+            timeout: 20000,
+          },
+          global: { headers: { Authorization: `Bearer ${token}` } }
+        });
+        if(token !== supabaseAnon) sb.realtime.setAuth(token);
+
+        // Canal: invoices (refresh billing)
+        // v1.0.3 — console.log de "✓ RT: x" eliminados (spam en DevTools)
+        const ch1 = sb.channel('madre-invoices')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices' }, () => this._onBillingChange())
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'subscriptions' }, () => this._onBillingChange())
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'payments' }, (p) => {
+            global.toast?.('💰 Pago registrado', 'success');
+            this._onBillingChange();
+          })
+          .subscribe();
+        this._channels.push(ch1);
+
+        // Canal: tickets
+        const ch2 = sb.channel('madre-tickets')
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tickets' }, (p) => {
+            global.toast?.('📋 Nuevo ticket: ' + (p.new?.subject || ''), 'warn');
+            this._onTicketChange();
+          })
+          .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets' }, () => this._onTicketChange())
+          .subscribe();
+        this._channels.push(ch2);
+
+        // Canal: notifications (para toast)
+        const ch3 = sb.channel('madre-notifications')
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (p) => {
+            const n = p.new;
+            if(!n) return;
+            const severityMap = { info: 'success', warn: 'warn', err: 'err', success: 'success' };
+            global.toast?.(n.title || 'Notificación', severityMap[n.severity] || 'success');
+          })
+          .subscribe();
+        this._channels.push(ch3);
+
+        // Canal: leads + appointments + clients (command center)
+        const ch4 = sb.channel('madre-pulse')
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'leads' }, () => this._onCommandChange())
+          .on('postgres_changes', { event: '*',     schema: 'public', table: 'appointments' }, () => this._onCommandChange())
+          .on('postgres_changes', { event: '*',     schema: 'public', table: 'clients' }, () => this._onCommandChange())
+          .subscribe();
+        this._channels.push(ch4);
+
+        this._initialized = true;
+        this._sb = sb;
+      } catch(err) {
+        console.warn('[polish] Realtime.init falló:', err.message || err);
+        // App sigue funcional sin realtime · solo afecta updates en vivo
       }
-
-      // Crear cliente SDK para realtime
-      const sb = global.supabase.createClient(supabaseUrl, supabaseAnon, {
-        realtime: { params: { eventsPerSecond: 5 } },
-        global: { headers: { Authorization: `Bearer ${token}` } }
-      });
-      if(token !== supabaseAnon) sb.realtime.setAuth(token);
-
-      // Canal: invoices (refresh billing)
-      const ch1 = sb.channel('madre-invoices')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices' }, () => this._onBillingChange())
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'subscriptions' }, () => this._onBillingChange())
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'payments' }, (p) => {
-          global.toast?.('💰 Pago registrado', 'success');
-          this._onBillingChange();
-        })
-        .subscribe((status) => { if(status === 'SUBSCRIBED') console.log('✓ RT: billing'); });
-      this._channels.push(ch1);
-
-      // Canal: tickets
-      const ch2 = sb.channel('madre-tickets')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tickets' }, (p) => {
-          global.toast?.('📋 Nuevo ticket: ' + (p.new?.subject || ''), 'warn');
-          this._onTicketChange();
-        })
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets' }, () => this._onTicketChange())
-        .subscribe((status) => { if(status === 'SUBSCRIBED') console.log('✓ RT: tickets'); });
-      this._channels.push(ch2);
-
-      // Canal: notifications (para toast)
-      const ch3 = sb.channel('madre-notifications')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (p) => {
-          const n = p.new;
-          if(!n) return;
-          const severityMap = { info: 'success', warn: 'warn', err: 'err', success: 'success' };
-          global.toast?.(n.title || 'Notificación', severityMap[n.severity] || 'success');
-        })
-        .subscribe((status) => { if(status === 'SUBSCRIBED') console.log('✓ RT: notifications'); });
-      this._channels.push(ch3);
-
-      // Canal: leads + appointments + clients (command center)
-      const ch4 = sb.channel('madre-pulse')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'leads' }, () => this._onCommandChange())
-        .on('postgres_changes', { event: '*',     schema: 'public', table: 'appointments' }, () => this._onCommandChange())
-        .on('postgres_changes', { event: '*',     schema: 'public', table: 'clients' }, () => this._onCommandChange())
-        .subscribe((status) => { if(status === 'SUBSCRIBED') console.log('✓ RT: pulse'); });
-      this._channels.push(ch4);
-
-      this._initialized = true;
-      this._sb = sb;
     },
 
     _onBillingChange(){
@@ -517,8 +540,6 @@
 
     // Activar realtime
     Realtime.init();
-
-    console.log('[polish] Fase 4 activa · Command Center real + Realtime + Cache');
   };
 
   global.loadCommandCenterReal = loadCommandCenterReal;
@@ -526,10 +547,8 @@
   // ══════════════════════════════════════════
   // HELPERS
   // ══════════════════════════════════════════
-  function escapeHtml(s){
-    if(s === null || s === undefined) return '';
-    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  }
+  // escapeHtml viene de utils.js (window.escapeHtml)
+  // timeAgo es local: usa 'ahora' para <60s, sin 'hace' en m/h/d (formato compacto)
   function timeAgo(iso){
     if(!iso) return '—';
     const s = Math.floor((Date.now() - new Date(iso).getTime())/1000);

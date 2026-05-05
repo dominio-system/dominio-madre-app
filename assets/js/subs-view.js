@@ -278,7 +278,7 @@
     }
   };
 
-  function escapeHtml(s){ if(s===null||s===undefined) return '—'; return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  // escapeHtml viene de utils.js (window.escapeHtml)
 
   global.SubsView = SubsView;
 })(window);

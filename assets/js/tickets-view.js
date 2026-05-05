@@ -314,7 +314,8 @@
     }
   };
 
-  function escapeHtml(s){ if(s===null||s===undefined) return '—'; return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  // escapeHtml viene de utils.js (window.escapeHtml)
+  // timeAgo es local porque tiene formato compacto (sin "hace ") distinto al de MadreUtils.relativeTime
   function timeAgo(iso){
     if(!iso) return '';
     const s = Math.floor((Date.now() - new Date(iso).getTime())/1000);

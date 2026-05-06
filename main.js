@@ -395,6 +395,8 @@ const ALLOWED_EXTERNAL_HOSTS = new Set([
   'cal.com', 'app.cal.com',
   'github.com', 'raw.githubusercontent.com',
   'vercel.com',
+  // Notion (wiki interna desde v1.0.16)
+  'notion.so', 'www.notion.so', 'notion.com', 'www.notion.com',
   // Finanzas/legal de LLC
   'mercury.com', 'app.mercury.com',
   'doola.com', 'app.doola.com',

@@ -210,30 +210,32 @@
 
   // ─── 5. ⌘K Search overlay · resultados agrupados ───
   // Mock index · TODO Fase 2: indexar desde Supabase (clientes/leads/invoices/audit)
+  // v1.0.16 · search index actualizado · vistas hidden no aparecen aquí (audit, webhooks, keys)
+  // accesibles vía go('audit') etc · pero no listadas para no confundir
   const SEARCH_INDEX = [
+    { cat:'home',    icon:'C', title:'Centro de Mando',       sub:'KPIs · feed · health overview',      view:'command' },
+    { cat:'home',    icon:'H', title:'Salud del Negocio',     sub:'6 KPIs ejecutivos · semáforo',       view:'health' },
     { cat:'config',  icon:'⚙', title:'Configuración',         sub:'cuenta · updates · sistema',         view:'settings' },
     { cat:'config',  icon:'⚙', title:'Buscar actualizaciones',sub:'check GitHub Releases',              view:'settings' },
-    { cat:'system',  icon:'S', title:'System Status',         sub:'uptime · services · latencia',       view:'status' },
-    { cat:'system',  icon:'A', title:'Audit log',             sub:'últimas 100 acciones',               view:'audit' },
+    { cat:'system',  icon:'S', title:'Estado del Sistema',    sub:'uptime · services · latencia',       view:'status' },
     { cat:'system',  icon:'I', title:'Incidencias',           sub:'historial de incidents',             view:'incidents' },
     { cat:'team',    icon:'U', title:'Usuarios',              sub:'team members + invitaciones',        view:'users' },
-    { cat:'team',    icon:'R', title:'Roles & Permisos',      sub:'RBAC custom',                        view:'roles' },
-    { cat:'biz',     icon:'$', title:'Revenue & MRR',         sub:'analytics business',                 view:'revenue' },
-    { cat:'biz',     icon:'$', title:'Invoices',              sub:'facturas Stripe',                    view:'invoices' },
-    { cat:'biz',     icon:'$', title:'Subscriptions',         sub:'subs activas · churn',               view:'subs' },
-    { cat:'biz',     icon:'$', title:'Dunning',               sub:'cobranza · payments fallidos',       view:'dunning' },
-    { cat:'biz',     icon:'$', title:'Payouts',               sub:'pagos enviados',                     view:'payouts' },
-    { cat:'ops',     icon:'F', title:'Funnel Maestro',        sub:'90d · conversión por fuente',        view:'funnel' },
-    { cat:'ops',     icon:'L', title:'Lead Sources',          sub:'UTM tracking · attribution',         view:'leads' },
-    { cat:'ops',     icon:'C', title:'Clientes',              sub:'12 activos · heat-bars',             view:'clients' },
-    { cat:'plat',    icon:'I', title:'Integraciones',         sub:'Stripe · n8n · Resend',              view:'integrations' },
-    { cat:'plat',    icon:'K', title:'API & Keys',            sub:'gestión de API keys',                view:'keys' },
-    { cat:'plat',    icon:'W', title:'Webhooks',              sub:'eventos salientes',                  view:'webhooks' },
+    { cat:'biz',     icon:'$', title:'Ingresos & MRR',        sub:'métricas SaaS recurrentes',          view:'revenue' },
+    { cat:'biz',     icon:'$', title:'Facturas',              sub:'invoices Stripe',                    view:'invoices' },
+    { cat:'biz',     icon:'$', title:'Suscripciones',         sub:'subs activas · churn',               view:'subs' },
+    { cat:'biz',     icon:'$', title:'Cobranza',              sub:'dunning · payments fallidos',        view:'dunning' },
+    { cat:'biz',     icon:'$', title:'Liquidaciones',         sub:'pagos enviados',                     view:'payouts' },
+    { cat:'ops',     icon:'F', title:'Embudo',                sub:'90d · conversión por fuente',        view:'funnel' },
+    { cat:'ops',     icon:'L', title:'Fuentes de Leads',      sub:'UTM tracking · attribution',         view:'leads' },
+    { cat:'ops',     icon:'C', title:'Clientes',              sub:'activos · heat-bars',                view:'clients' },
+    { cat:'plat',    icon:'I', title:'Integraciones',         sub:'Stripe · n8n · Resend · Meta',       view:'integrations' },
     { cat:'soporte', icon:'T', title:'Tickets',               sub:'queue de soporte',                   view:'tickets' },
-    { cat:'soporte', icon:'D', title:'Documentación',         sub:'KB interna',                         view:'docs' },
+    { cat:'soporte', icon:'R', title:'Recursos',              sub:'wiki interna · Notion shortcuts',    view:'docs' },
+    // Hidden del sidebar (sin entrada en search · accesibles vía go('audit'/'webhooks'/'keys') o vía URL bookmark)
+    // Reactivar acá cuando se vuelvan al sidebar.
   ];
   const CAT_LABEL = {
-    config:'CONFIGURACIÓN', system:'SISTEMA', team:'EQUIPO',
+    home:'INICIO', config:'CONFIGURACIÓN', system:'SISTEMA', team:'EQUIPO',
     biz:'NEGOCIO', ops:'OPERACIÓN', plat:'PLATAFORMA', soporte:'SOPORTE',
   };
   let _searchKbdIdx = 0;

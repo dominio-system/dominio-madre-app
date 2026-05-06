@@ -224,7 +224,7 @@
     { cat:'biz',     icon:'$', title:'Facturas',              sub:'invoices Stripe',                    view:'invoices' },
     { cat:'biz',     icon:'$', title:'Suscripciones',         sub:'subs activas · churn',               view:'subs' },
     { cat:'biz',     icon:'$', title:'Cobranza',              sub:'dunning · payments fallidos',        view:'dunning' },
-    { cat:'biz',     icon:'$', title:'Liquidaciones',         sub:'pagos enviados',                     view:'payouts' },
+    // Liquidaciones (payouts) hidden v1.0.18 · reactivar cuando lances programa de afiliados
     { cat:'ops',     icon:'F', title:'Embudo',                sub:'90d · conversión por fuente',        view:'funnel' },
     { cat:'ops',     icon:'L', title:'Fuentes de Leads',      sub:'UTM tracking · attribution',         view:'leads' },
     { cat:'ops',     icon:'C', title:'Clientes',              sub:'activos · heat-bars',                view:'clients' },

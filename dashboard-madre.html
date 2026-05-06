@@ -448,13 +448,16 @@ body.notif-open .notif-overlay{pointer-events:auto;}
 
     <!-- 2. NEGOCIO · top priority · revisado diario -->
     <div class="nav-group" data-group="negocio">
-      <div class="group-head" onclick="toggleGroup('negocio')"><div class="group-chev"><svg viewBox="0 0 8 8" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3l2 2 2-2"/></svg></div><div class="group-label">Negocio</div><div class="group-count">5</div></div>
+      <div class="group-head" onclick="toggleGroup('negocio')"><div class="group-chev"><svg viewBox="0 0 8 8" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3l2 2 2-2"/></svg></div><div class="group-label">Negocio</div><div class="group-count">4</div></div>
       <div class="group-items">
         <div class="nav-item" data-view="revenue" data-label="Ingresos & MRR" onclick="go('revenue')"><span class="nav-icon"><svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M6.5 1v11M9 3.5h-3a1.5 1.5 0 000 3h1.5a1.5 1.5 0 010 3h-3.5"/></svg></span><span class="nav-text">Ingresos & MRR</span></div>
         <div class="nav-item" data-view="dunning" data-label="Cobranza" onclick="go('dunning')"><span class="nav-icon"><svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M6.5 1.5l5.5 9.5h-11z"/><path d="M6.5 5.5v2.5M6.5 9.5v.5"/></svg></span><span class="nav-text">Cobranza</span></div>
         <div class="nav-item" data-view="invoices" data-label="Facturas" onclick="go('invoices')"><span class="nav-icon"><svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M3 1.5h7v10l-1.5-1-1 1-1-1-1 1-1-1-1.5 1z"/><path d="M5 5h3M5 7h3"/></svg></span><span class="nav-text">Facturas</span><span class="nav-badge">—</span></div>
         <div class="nav-item" data-view="subs" data-label="Suscripciones" onclick="go('subs')"><span class="nav-icon"><svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M2 6.5a4.5 4.5 0 018-3M11 6.5a4.5 4.5 0 01-8 3M9 2v2.5h2.5M4 11V8.5H1.5"/></svg></span><span class="nav-text">Suscripciones</span></div>
+        <!-- v1.0.18 · Liquidaciones OCULTA del sidebar (handler vivo · accesible vía go('payouts') o ⌘K).
+             Reactivar cuando lances programa de afiliados / partners que requieran payouts:
         <div class="nav-item" data-view="payouts" data-label="Liquidaciones" onclick="go('payouts')"><span class="nav-icon"><svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="1.5" y="3" width="10" height="7" rx="1"/><circle cx="6.5" cy="6.5" r="1.5"/></svg></span><span class="nav-text">Liquidaciones</span></div>
+        -->
       </div>
     </div>
 

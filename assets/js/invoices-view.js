@@ -36,24 +36,18 @@
           <div class="kpi-card"><div class="kpi-label">TICKET PROM.</div><div class="kpi-value" id="iv-avg">—</div><div class="kpi-trend">por factura</div></div>
         </div>
 
-        <div class="panel" style="margin-bottom:12px;">
-          <div class="panel-head">
-            <div class="panel-title">Filtros</div>
-            <div class="panel-sub" id="iv-count">—</div>
-          </div>
-          <div style="display:flex;gap:10px;padding:12px 14px;flex-wrap:wrap;align-items:center;">
-            <div style="display:flex;gap:2px;background:var(--card2);border:1px solid var(--border);border-radius:5px;padding:2px;">
-              <button data-f="all"     class="period-tab active" onclick="InvoicesView.setFilter('status','all')">Todas</button>
-              <button data-f="draft"   class="period-tab" onclick="InvoicesView.setFilter('status','draft')">Draft</button>
-              <button data-f="open"    class="period-tab" onclick="InvoicesView.setFilter('status','open')">Abiertas</button>
-              <button data-f="overdue" class="period-tab" onclick="InvoicesView.setFilter('status','overdue')">Overdue</button>
-              <button data-f="paid"    class="period-tab" onclick="InvoicesView.setFilter('status','paid')">Pagadas</button>
-              <button data-f="void"    class="period-tab" onclick="InvoicesView.setFilter('status','void')">Void</button>
-            </div>
-            <select id="iv-client-filter" style="background:var(--card2);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:5px;font-size:11px;font-family:inherit;outline:none;min-width:180px;">
-              <option value="">Todos los clientes</option>
-            </select>
-          </div>
+        <div class="filter-pill-card">
+          <span class="filter-label">FILTROS</span>
+          <button data-f="all"     class="filter-pill-btn active" onclick="InvoicesView.setFilter('status','all')">Todas <span class="count">(<span data-iv-count="all">0</span>)</span></button>
+          <button data-f="draft"   class="filter-pill-btn" onclick="InvoicesView.setFilter('status','draft')">○ Draft <span class="count">(<span data-iv-count="draft">0</span>)</span></button>
+          <button data-f="open"    class="filter-pill-btn" onclick="InvoicesView.setFilter('status','open')">● Abiertas <span class="count">(<span data-iv-count="open">0</span>)</span></button>
+          <button data-f="overdue" class="filter-pill-btn" onclick="InvoicesView.setFilter('status','overdue')">⚠ Overdue <span class="count">(<span data-iv-count="overdue">0</span>)</span></button>
+          <button data-f="paid"    class="filter-pill-btn" onclick="InvoicesView.setFilter('status','paid')">✓ Pagadas <span class="count">(<span data-iv-count="paid">0</span>)</span></button>
+          <button data-f="void"    class="filter-pill-btn" onclick="InvoicesView.setFilter('status','void')">✕ Void <span class="count">(<span data-iv-count="void">0</span>)</span></button>
+          <select id="iv-client-filter" style="background:var(--card2);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:999px;font-size:11px;font-family:inherit;outline:none;min-width:180px;margin-left:6px;">
+            <option value="">Todos los clientes</option>
+          </select>
+          <span style="margin-left:auto;font-size:10px;color:var(--text3);font-family:'Geist Mono',monospace;" id="iv-count">—</span>
         </div>
 
         <div class="panel">
@@ -88,7 +82,7 @@
     setFilter(key, value){
       this._filter[key] = value;
       // Actualizar UI tabs
-      document.querySelectorAll('.period-tab[data-f]').forEach(t => t.classList.toggle('active', t.dataset.f === this._filter.status));
+      document.querySelectorAll('.filter-pill-btn[data-f]').forEach(t => t.classList.toggle('active', t.dataset.f === this._filter.status));
       this.renderTable();
     },
 
@@ -154,9 +148,18 @@
       const tbody = document.getElementById('iv-tbody');
       const rows = this._filtered();
       document.getElementById('iv-count').textContent = `${rows.length} de ${this._invoices.length}`;
+      // Update filter counts
+      const counts = { all: this._invoices.length, draft:0, open:0, overdue:0, paid:0, void:0 };
+      this._invoices.forEach(i => {
+        if(counts[i.status] !== undefined) counts[i.status]++;
+      });
+      Object.entries(counts).forEach(([k,v]) => {
+        const el = document.querySelector(`[data-iv-count="${k}"]`);
+        if(el) el.textContent = v;
+      });
 
       if(rows.length === 0){
-        tbody.innerHTML = `<tr><td colspan="9" class="dim" style="text-align:center;padding:24px;">Sin facturas con estos filtros.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" style="padding:0;">${global.MadreUtils.emptyState({ icon:'$', title:'Sin facturas', body:'No hay invoices con los filtros actuales.' })}</td></tr>`;
         return;
       }
 

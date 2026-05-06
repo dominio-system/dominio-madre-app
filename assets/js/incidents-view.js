@@ -60,16 +60,21 @@
         chips = resetNodeListeners(chips);
       }
       const STATUSES = [
-        ['all',          'Todas'],
-        ['open',         'Abiertas'],
-        ['investigating','Investigando'],
-        ['identified',   'Identificadas'],
-        ['monitoring',   'Monitoreando'],
-        ['resolved',     'Resueltas'],
+        ['all',          'Todas',        ''],
+        ['open',         'Abiertas',     '⚠'],
+        ['investigating','Investigando', '🔍'],
+        ['identified',   'Identificadas','◐'],
+        ['monitoring',   'Monitoreando', '◉'],
+        ['resolved',     'Resueltas',    '✓'],
       ];
-      chips.innerHTML = STATUSES.map(([val,label]) => `
-        <button class="btn ghost" data-istatus="${val}" style="font-size:10px;padding:4px 10px;${this._filters.status === val ? 'background:var(--card2);color:var(--text);' : ''}">${label}</button>
-      `).join('');
+      // Counts por status
+      const counts = { all: this._incidents.length };
+      this._incidents.forEach(i => { counts[i.status] = (counts[i.status] || 0) + 1; });
+      chips.innerHTML = STATUSES.map(([val,label,icon]) => {
+        const count = counts[val] || 0;
+        const active = this._filters.status === val ? ' active' : '';
+        return `<button class="filter-pill-btn${active}" data-istatus="${val}">${icon ? icon + ' ' : ''}${label} <span class="count">(${count})</span></button>`;
+      }).join('');
       chips.querySelectorAll('button').forEach(b => {
         b.addEventListener('click', () => {
           this._filters.status = b.dataset.istatus;

@@ -50,23 +50,31 @@
       if(!chips){
         chips = document.createElement('div');
         chips.className = 'audit-filters';
-        chips.style.cssText = 'display:flex;gap:6px;margin-left:auto;flex-wrap:wrap;align-items:center;flex:1;justify-content:flex-end;min-width:0;';
+        chips.style.cssText = 'display:flex;gap:6px;margin-left:auto;flex-wrap:wrap;align-items:center;flex:1;justify-content:flex-end;min-width:0;padding:8px 4px;';
         panel.appendChild(chips);
       } else {
         // Limpiar listeners previos para no acumular handlers
         chips = resetNodeListeners(chips);
       }
       const RESULTS = [
-        ['all',     'Todas'],
-        ['success', 'Éxito'],
-        ['failure', 'Fallo'],
-        ['denied',  'Denegado'],
+        ['all',     'Todas',    ''],
+        ['success', 'Éxito',    '✓'],
+        ['failure', 'Fallo',    '✗'],
+        ['denied',  'Denegado', '⊘'],
       ];
-      chips.innerHTML = RESULTS.map(([val,label]) => `
-        <button class="btn ghost" data-aresult="${val}" style="font-size:10px;padding:4px 10px;${this._filters.result === val ? 'background:var(--card2);color:var(--text);' : ''}">${label}</button>
-      `).join('') + `
-        <input type="text" id="audit-search" placeholder="Filtrar por acción..." value="${escapeHtml(this._filters.action)}"
-               style="margin-left:8px;background:var(--card2);border:1px solid var(--border);padding:4px 10px;font-size:11px;color:var(--text);border-radius:4px;font-family:inherit;flex:1;min-width:120px;max-width:220px;">
+      // Counts
+      const counts = { all: this._entries.length };
+      this._entries.forEach(e => {
+        const r = (e.result || '').toLowerCase();
+        counts[r] = (counts[r] || 0) + 1;
+      });
+      chips.innerHTML = RESULTS.map(([val,label,icon]) => {
+        const count = counts[val] || 0;
+        const active = this._filters.result === val ? ' active' : '';
+        return `<button class="filter-pill-btn${active}" data-aresult="${val}">${icon ? icon + ' ' : ''}${label} <span class="count">(${count})</span></button>`;
+      }).join('') + `
+        <input type="text" id="audit-search" placeholder="Buscar acción..." value="${escapeHtml(this._filters.action)}"
+               style="margin-left:8px;background:var(--card2);border:1px solid var(--border);padding:5px 11px;font-size:11px;color:var(--text);border-radius:999px;font-family:'Geist Mono',monospace;outline:none;flex:1;min-width:120px;max-width:220px;">
       `;
       chips.querySelectorAll('button[data-aresult]').forEach(b => {
         b.addEventListener('click', () => {

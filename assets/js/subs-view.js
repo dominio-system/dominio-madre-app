@@ -29,16 +29,15 @@
           <div class="kpi-card"><div class="kpi-label">MRR</div><div class="kpi-value" id="sv-mrr">—</div><div class="kpi-trend up">real</div></div>
         </div>
 
-        <div class="panel" style="margin-bottom:12px;">
-          <div class="panel-head"><div class="panel-title">Filtros</div><div class="panel-sub" id="sv-count">—</div></div>
-          <div style="display:flex;gap:2px;background:var(--card2);border:1px solid var(--border);border-radius:5px;padding:2px;margin:12px 14px;width:fit-content;">
-            <button data-sf="all"      class="period-tab active" onclick="SubsView.setFilter('all')">Todas</button>
-            <button data-sf="active"   class="period-tab" onclick="SubsView.setFilter('active')">Activas</button>
-            <button data-sf="trialing" class="period-tab" onclick="SubsView.setFilter('trialing')">Trial</button>
-            <button data-sf="past_due" class="period-tab" onclick="SubsView.setFilter('past_due')">Past Due</button>
-            <button data-sf="paused"   class="period-tab" onclick="SubsView.setFilter('paused')">Paused</button>
-            <button data-sf="canceled" class="period-tab" onclick="SubsView.setFilter('canceled')">Canceladas</button>
-          </div>
+        <div class="filter-pill-card">
+          <span class="filter-label">FILTROS</span>
+          <button data-sf="all"      class="filter-pill-btn active" onclick="SubsView.setFilter('all')">Todas <span class="count">(<span data-sv-count="all">0</span>)</span></button>
+          <button data-sf="active"   class="filter-pill-btn" onclick="SubsView.setFilter('active')">● Activas <span class="count">(<span data-sv-count="active">0</span>)</span></button>
+          <button data-sf="trialing" class="filter-pill-btn" onclick="SubsView.setFilter('trialing')">⏱ Trial <span class="count">(<span data-sv-count="trialing">0</span>)</span></button>
+          <button data-sf="past_due" class="filter-pill-btn" onclick="SubsView.setFilter('past_due')">⚠ Past Due <span class="count">(<span data-sv-count="past_due">0</span>)</span></button>
+          <button data-sf="paused"   class="filter-pill-btn" onclick="SubsView.setFilter('paused')">⏸ Paused <span class="count">(<span data-sv-count="paused">0</span>)</span></button>
+          <button data-sf="canceled" class="filter-pill-btn" onclick="SubsView.setFilter('canceled')">✕ Canceladas <span class="count">(<span data-sv-count="canceled">0</span>)</span></button>
+          <span style="margin-left:auto;font-size:10px;color:var(--text3);font-family:'Geist Mono',monospace;" id="sv-count">— de —</span>
         </div>
 
         <div class="panel">
@@ -62,8 +61,17 @@
 
     setFilter(status){
       this._filter.status = status;
-      document.querySelectorAll('.period-tab[data-sf]').forEach(t => t.classList.toggle('active', t.dataset.sf === status));
+      document.querySelectorAll('.filter-pill-btn[data-sf]').forEach(t => t.classList.toggle('active', t.dataset.sf === status));
       this.renderTable();
+    },
+
+    _updateFilterCounts(){
+      const counts = { all: this._subs.length, active:0, trialing:0, past_due:0, paused:0, canceled:0 };
+      this._subs.forEach(s => { if(counts[s.status] !== undefined) counts[s.status]++; });
+      Object.entries(counts).forEach(([k,v]) => {
+        const el = document.querySelector(`[data-sv-count="${k}"]`);
+        if(el) el.textContent = v;
+      });
     },
 
     async load(){
@@ -103,6 +111,7 @@
       const tbody = document.getElementById('sv-tbody');
       const rows = this._filtered();
       document.getElementById('sv-count').textContent = `${rows.length} de ${this._subs.length}`;
+      this._updateFilterCounts();
 
       if(rows.length === 0){
         tbody.innerHTML = `<tr><td colspan="8" style="padding:0;">${global.MadreUtils.emptyState({

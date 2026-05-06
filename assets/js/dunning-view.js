@@ -8,6 +8,7 @@
 
   const DunningView = {
     _queue: [],
+    _filter: 'all',  // all|email|reminder|final|written_off
 
     async render(){
       const view = document.querySelector('.view[data-view="dunning"]');
@@ -29,7 +30,17 @@
           <div class="kpi-card"><div class="kpi-label">WRITTEN OFF</div><div class="kpi-value" id="dv-writtenoff">—</div><div class="kpi-trend">incobrables</div></div>
         </div>
 
-        <div class="panel" style="margin-top:12px;">
+        <div class="filter-pill-card" style="margin-top:12px;">
+          <span class="filter-label">DUNNING STATE</span>
+          <button class="filter-pill-btn active" data-df="all"         onclick="DunningView.setFilter('all')">Todas <span class="count">(<span data-dv-count="all">0</span>)</span></button>
+          <button class="filter-pill-btn"        data-df="email"       onclick="DunningView.setFilter('email')">📧 Email <span class="count">(<span data-dv-count="email">0</span>)</span></button>
+          <button class="filter-pill-btn"        data-df="reminder"    onclick="DunningView.setFilter('reminder')">⏰ Reminder <span class="count">(<span data-dv-count="reminder">0</span>)</span></button>
+          <button class="filter-pill-btn"        data-df="final"       onclick="DunningView.setFilter('final')">⚠ Final <span class="count">(<span data-dv-count="final">0</span>)</span></button>
+          <button class="filter-pill-btn"        data-df="written_off" onclick="DunningView.setFilter('written_off')">✕ Write-off <span class="count">(<span data-dv-count="written_off">0</span>)</span></button>
+          <span style="margin-left:auto;font-size:10px;color:var(--text3);font-family:'Geist Mono',monospace;" id="dv-filter-info">— de —</span>
+        </div>
+
+        <div class="panel">
           <div class="panel-head">
             <div class="panel-title">Queue priorizado</div>
             <div class="panel-sub">ordenado por prioridad (monto × días overdue)</div>
@@ -98,18 +109,46 @@
       }
     },
 
+    setFilter(f){
+      this._filter = f;
+      document.querySelectorAll('.filter-pill-btn[data-df]').forEach(t => t.classList.toggle('active', t.dataset.df === f));
+      this.renderTable();
+    },
+
+    _filteredQueue(){
+      if(this._filter === 'all') return this._queue;
+      return this._queue.filter(q => (q.dunning_state || 'email').toLowerCase() === this._filter);
+    },
+
+    _updateFilterCounts(){
+      const counts = { all: this._queue.length, email:0, reminder:0, final:0, written_off:0 };
+      this._queue.forEach(q => {
+        const k = (q.dunning_state || 'email').toLowerCase();
+        if(counts[k] !== undefined) counts[k]++;
+      });
+      Object.entries(counts).forEach(([k,v]) => {
+        const el = document.querySelector(`[data-dv-count="${k}"]`);
+        if(el) el.textContent = v;
+      });
+    },
+
     renderTable(){
       const tbody = document.getElementById('dv-tbody');
-      if(this._queue.length === 0){
-        tbody.innerHTML = `<tr><td colspan="9" class="dim" style="text-align:center;padding:30px;">
-          <div style="font-size:16px;color:var(--success);margin-bottom:6px;">✓ Sin facturas en cobranza</div>
-          <div style="font-size:11px;">Todas las facturas están al día o escritas-off.</div>
-        </td></tr>`;
+      this._updateFilterCounts();
+      const rows = this._filteredQueue();
+      const info = document.getElementById('dv-filter-info');
+      if(info) info.textContent = `${rows.length} de ${this._queue.length}`;
+
+      if(rows.length === 0){
+        tbody.innerHTML = `<tr><td colspan="9" style="padding:0;">${global.MadreUtils.emptyState({
+          icon:'✓', title:this._queue.length === 0 ? 'Sin facturas en cobranza' : 'Sin facturas con este filtro',
+          body: this._queue.length === 0 ? 'Todas las facturas están al día o escritas-off.' : 'Cambia el filtro para ver otras facturas.'
+        })}</td></tr>`;
         return;
       }
 
       const canWrite = global.RBAC?.can('billing:write');
-      tbody.innerHTML = this._queue.map(q => {
+      tbody.innerHTML = rows.map(q => {
         const cur = (q.currency||'usd').toUpperCase();
         const outstanding = (q.amount_outstanding_cents||0)/100;
         const stateColors = {

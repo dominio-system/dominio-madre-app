@@ -34,11 +34,11 @@
         <div style="display:grid;grid-template-columns:340px 1fr;gap:12px;margin-top:12px;height:calc(100vh - 360px);min-height:400px;">
           <!-- LEFT: inbox -->
           <div class="panel" style="display:flex;flex-direction:column;overflow:hidden;">
-            <div style="padding:8px 10px;border-bottom:1px solid var(--border);display:flex;gap:2px;background:var(--card2);">
-              <button class="period-tab active" data-tf="open"    onclick="TicketsView.setFilter('open')">Abiertos</button>
-              <button class="period-tab" data-tf="pending" onclick="TicketsView.setFilter('pending')">Pending</button>
-              <button class="period-tab" data-tf="resolved" onclick="TicketsView.setFilter('resolved')">Resueltos</button>
-              <button class="period-tab" data-tf="all"     onclick="TicketsView.setFilter('all')">Todos</button>
+            <div style="padding:10px 12px;border-bottom:1px solid var(--border);display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+              <button class="filter-pill-btn active" data-tf="open"    onclick="TicketsView.setFilter('open')">● Abiertos <span class="count">(<span data-tv-count="open">0</span>)</span></button>
+              <button class="filter-pill-btn" data-tf="pending" onclick="TicketsView.setFilter('pending')">⏱ Pending <span class="count">(<span data-tv-count="pending">0</span>)</span></button>
+              <button class="filter-pill-btn" data-tf="resolved" onclick="TicketsView.setFilter('resolved')">✓ Resueltos <span class="count">(<span data-tv-count="resolved">0</span>)</span></button>
+              <button class="filter-pill-btn" data-tf="all"     onclick="TicketsView.setFilter('all')">Todos <span class="count">(<span data-tv-count="all">0</span>)</span></button>
             </div>
             <div id="tv-list" style="flex:1;overflow-y:auto;"></div>
           </div>
@@ -61,7 +61,14 @@
 
     setFilter(f){
       this._filter = f;
-      document.querySelectorAll('.period-tab[data-tf]').forEach(t => t.classList.toggle('active', t.dataset.tf === f));
+      document.querySelectorAll('.filter-pill-btn[data-tf]').forEach(t => t.classList.toggle('active', t.dataset.tf === f));
+      // Update counts
+      const counts = { all: this._tickets.length, open:0, pending:0, resolved:0 };
+      this._tickets.forEach(t => { if(counts[t.status] !== undefined) counts[t.status]++; });
+      Object.entries(counts).forEach(([k,v]) => {
+        const el = document.querySelector(`[data-tv-count="${k}"]`);
+        if(el) el.textContent = v;
+      });
       this.renderList();
     },
 

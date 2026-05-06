@@ -1,7 +1,7 @@
 {
   "name": "dominio-corporativo",
   "productName": "Dominio Corporativo",
-  "version": "1.0.13",
+  "version": "1.0.14",
   "description": "Panel corporativo de Dominio — analytics, negocio, plataforma, organización, sistema y soporte",
   "main": "main.js",
   "author": {

@@ -18,6 +18,7 @@
   const WebhooksView = {
     _webhooks: [],
     _deliveries: [],
+    _filter: 'all',  // all|active|paused|failing
 
     async render(){
       const view = document.querySelector('.view[data-view="webhooks"]');
@@ -39,8 +40,17 @@
           <div class="kpi-card"><div class="kpi-label">LATENCIA AVG</div><div class="kpi-value" id="wv-latency">—</div><div class="kpi-trend">ms p50</div></div>
         </div>
 
-        <div class="panel" style="margin-top:12px;">
-          <div class="panel-head"><div class="panel-title">Webhooks configurados</div><div class="panel-sub" id="wv-count">—</div></div>
+        <div class="filter-pill-card" style="margin-top:12px;">
+          <span class="filter-label">FILTROS</span>
+          <button class="filter-pill-btn active" data-wf="all"     onclick="WebhooksView.setFilter('all')">Todos <span class="count">(<span data-wv-count="all">0</span>)</span></button>
+          <button class="filter-pill-btn"        data-wf="active"  onclick="WebhooksView.setFilter('active')">● Activos <span class="count">(<span data-wv-count="active">0</span>)</span></button>
+          <button class="filter-pill-btn"        data-wf="paused"  onclick="WebhooksView.setFilter('paused')">⏸ Pausados <span class="count">(<span data-wv-count="paused">0</span>)</span></button>
+          <button class="filter-pill-btn"        data-wf="failing" onclick="WebhooksView.setFilter('failing')">⚠ Fallando <span class="count">(<span data-wv-count="failing">0</span>)</span></button>
+          <span style="margin-left:auto;font-size:10px;color:var(--text3);font-family:'Geist Mono',monospace;" id="wv-count">—</span>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><div class="panel-title">Webhooks configurados</div><div class="panel-sub">click una fila para ver entregas</div></div>
           <table class="tbl">
             <thead>
               <tr><th class="sortable">Nombre / URL</th><th class="sortable">Dir</th><th class="sortable">Eventos</th><th class="sortable">Status</th><th class="sortable">Stats</th><th class="sortable">Última</th><th style="text-align:right;">Acciones</th></tr>
@@ -100,20 +110,62 @@
       document.getElementById('wv-latency').textContent = p50 ? Math.round(p50) + ' ms' : '—';
     },
 
+    setFilter(f){
+      this._filter = f;
+      document.querySelectorAll('.filter-pill-btn[data-wf]').forEach(t => t.classList.toggle('active', t.dataset.wf === f));
+      this.renderTable();
+    },
+
+    _filteredWebhooks(){
+      if(this._filter === 'all') return this._webhooks;
+      if(this._filter === 'failing'){
+        // failing = success_rate < 80% en últimas 100
+        return this._webhooks.filter(w => {
+          const lastDeliveries = this._deliveries.filter(d => d.webhook_id === w.id).slice(0, 100);
+          if(!lastDeliveries.length) return false;
+          const ok = lastDeliveries.filter(d => d.delivered).length;
+          return (ok / lastDeliveries.length) < 0.8;
+        });
+      }
+      return this._webhooks.filter(w => w.status === this._filter);
+    },
+
+    _updateFilterCounts(){
+      const counts = {
+        all: this._webhooks.length,
+        active: this._webhooks.filter(w => w.status === 'active').length,
+        paused: this._webhooks.filter(w => w.status === 'paused').length,
+        failing: this._webhooks.filter(w => {
+          const last = this._deliveries.filter(d => d.webhook_id === w.id).slice(0, 100);
+          if(!last.length) return false;
+          const ok = last.filter(d => d.delivered).length;
+          return (ok / last.length) < 0.8;
+        }).length,
+      };
+      Object.entries(counts).forEach(([k,v]) => {
+        const el = document.querySelector(`[data-wv-count="${k}"]`);
+        if(el) el.textContent = v;
+      });
+    },
+
     renderTable(){
       const tbody = document.getElementById('wv-tbody');
-      document.getElementById('wv-count').textContent = `${this._webhooks.length} webhooks`;
+      this._updateFilterCounts();
+      const rows = this._filteredWebhooks();
+      const info = document.getElementById('wv-count');
+      if(info) info.textContent = `${rows.length} de ${this._webhooks.length}`;
 
-      if(this._webhooks.length === 0){
-        tbody.innerHTML = `<tr><td colspan="7" class="dim" style="text-align:center;padding:30px;">
-          <div style="font-size:13px;margin-bottom:6px;">Sin webhooks configurados.</div>
-          <div style="font-size:11px;">Crea uno para recibir eventos de Dominio en tiempo real.</div>
-        </td></tr>`;
+      if(rows.length === 0){
+        tbody.innerHTML = `<tr><td colspan="7" style="padding:0;">${global.MadreUtils.emptyState({
+          icon:'⚡',
+          title: this._webhooks.length === 0 ? 'Sin webhooks configurados' : 'Sin webhooks con este filtro',
+          body: this._webhooks.length === 0 ? 'Creá uno para recibir eventos de Dominio en tiempo real.' : 'Cambiá el filtro para ver otros webhooks.'
+        })}</td></tr>`;
         return;
       }
 
       const canWrite = global.RBAC?.can('webhooks:write');
-      tbody.innerHTML = this._webhooks.map(w => {
+      tbody.innerHTML = rows.map(w => {
         const statusChip = w.status === 'active'
           ? '<span class="chip chip-ok"><span class="chip-dot"></span>ACTIVE</span>'
           : w.status === 'paused'

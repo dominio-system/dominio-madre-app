@@ -21,6 +21,7 @@
     _checks: [],
     _results: [],
     _refreshing: false,
+    _filter: 'all',  // all|ok|slow|fail
 
     async render(){
       const view = document.querySelector('.view[data-view="status"]');
@@ -28,6 +29,7 @@
 
       try {
         await this.loadData();
+        this.renderFilterBar();
         this.renderCards();
         this.renderTable();
         this.renderRefreshButton();
@@ -36,6 +38,49 @@
         console.error('[StatusView] render error:', err.message);
         this.renderError(err);
       }
+    },
+
+    renderFilterBar(){
+      const view = document.querySelector('.view[data-view="status"]');
+      if(!view) return;
+      let bar = view.querySelector('.filter-pill-card[data-status-filter]');
+      if(!bar){
+        bar = document.createElement('div');
+        bar.className = 'filter-pill-card';
+        bar.setAttribute('data-status-filter','');
+        // Insertar después del page-head
+        const cards = view.querySelector('#status-cards');
+        if(cards) cards.parentElement.insertBefore(bar, cards);
+        else view.appendChild(bar);
+      } else {
+        bar = global.MadreUtils.resetNodeListeners(bar);
+      }
+      const counts = {
+        all: this._checks.length,
+        ok:   this._checks.filter(c => c.last_status === 'ok').length,
+        slow: this._checks.filter(c => c.last_status === 'slow').length,
+        fail: this._checks.filter(c => c.last_status === 'fail').length,
+      };
+      const f = this._filter;
+      bar.innerHTML = `
+        <span class="filter-label">SERVICIOS</span>
+        <button class="filter-pill-btn ${f==='all'?'active':''}"  data-stf="all">Todos <span class="count">(${counts.all})</span></button>
+        <button class="filter-pill-btn ${f==='ok'?'active':''}"   data-stf="ok">● OK <span class="count">(${counts.ok})</span></button>
+        <button class="filter-pill-btn ${f==='slow'?'active':''}" data-stf="slow">⏱ Slow <span class="count">(${counts.slow})</span></button>
+        <button class="filter-pill-btn ${f==='fail'?'active':''}" data-stf="fail">⚠ Fail <span class="count">(${counts.fail})</span></button>
+      `;
+      bar.querySelectorAll('button').forEach(b => {
+        b.addEventListener('click', () => {
+          this._filter = b.dataset.stf;
+          this.renderFilterBar();
+          this.renderCards();
+        });
+      });
+    },
+
+    _filteredChecks(){
+      if(this._filter === 'all') return this._checks;
+      return this._checks.filter(c => (c.last_status || 'unknown').toLowerCase() === this._filter);
     },
 
     async loadData(){
@@ -66,7 +111,7 @@
         return;
       }
 
-      container.innerHTML = this._checks.map(c => {
+      container.innerHTML = this._filteredChecks().map(c => {
         const status = (c.last_status || 'unknown').toLowerCase();
         const STATUS_META = {
           'ok':      { color: 'var(--success, #6fcf97)', dot: '🟢', label: 'OK' },

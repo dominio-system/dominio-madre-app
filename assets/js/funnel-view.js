@@ -16,7 +16,7 @@
 
       view.innerHTML = `
         <div class="page-head">
-          <div><div class="page-title">Funnel Maestro</div><div class="page-sub" id="fv-sub">OPERACIÓN · ÚLTIMOS 90 DÍAS · AGREGADO TODOS LOS CLIENTES</div></div>
+          <div><div class="page-title">Embudo</div><div class="page-sub" id="fv-sub">OPERACIÓN · ÚLTIMOS 90 DÍAS · AGREGADO TODOS LOS CLIENTES</div></div>
           <div class="page-actions"><button class="btn ghost" id="fv-refresh">↻ Refrescar</button></div>
         </div>
 

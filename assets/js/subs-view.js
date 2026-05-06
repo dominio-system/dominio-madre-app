@@ -15,7 +15,7 @@
 
       view.innerHTML = `
         <div class="page-head">
-          <div><div class="page-title">Subscriptions</div><div class="page-sub" id="sv-sub">NEGOCIO · CARGANDO…</div></div>
+          <div><div class="page-title">Suscripciones</div><div class="page-sub" id="sv-sub">NEGOCIO · CARGANDO…</div></div>
           <div class="page-actions">
             <button class="btn ghost" id="sv-refresh">↻ Refrescar</button>
             <button class="btn primary" id="sv-new">+ Nueva suscripción</button>

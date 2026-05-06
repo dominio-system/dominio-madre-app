@@ -20,7 +20,7 @@
       view.innerHTML = `
         <div class="page-head">
           <div>
-            <div class="page-title">Invoices</div>
+            <div class="page-title">Facturas</div>
             <div class="page-sub" id="iv-sub">NEGOCIO · CARGANDO…</div>
           </div>
           <div class="page-actions">

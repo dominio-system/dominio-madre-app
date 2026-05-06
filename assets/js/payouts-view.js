@@ -15,7 +15,7 @@
 
       view.innerHTML = `
         <div class="page-head">
-          <div><div class="page-title">Payouts</div><div class="page-sub" id="pv-sub">NEGOCIO · CARGANDO…</div></div>
+          <div><div class="page-title">Liquidaciones</div><div class="page-sub" id="pv-sub">NEGOCIO · CARGANDO…</div></div>
           <div class="page-actions">
             <button class="btn ghost" id="pv-refresh">↻ Refrescar</button>
             <button class="btn primary" id="pv-new">+ Registrar payout</button>

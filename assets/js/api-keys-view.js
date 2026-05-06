@@ -16,7 +16,7 @@
 
       view.innerHTML = `
         <div class="page-head">
-          <div><div class="page-title">API &amp; Keys</div><div class="page-sub" id="ak-sub">PLATAFORMA · CARGANDO…</div></div>
+          <div><div class="page-title">Llaves API</div><div class="page-sub" id="ak-sub">PLATAFORMA · CARGANDO…</div></div>
           <div class="page-actions">
             <button class="btn ghost" id="ak-refresh">↻ Refrescar</button>
             <button class="btn primary" id="ak-new">+ Generar key</button>

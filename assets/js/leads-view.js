@@ -15,7 +15,7 @@
 
       view.innerHTML = `
         <div class="page-head">
-          <div><div class="page-title">Lead Sources</div><div class="page-sub" id="lv-sub">OPERACIÓN · ATRIBUCIÓN POR UTM</div></div>
+          <div><div class="page-title">Fuentes de Leads</div><div class="page-sub" id="lv-sub">OPERACIÓN · ATRIBUCIÓN POR UTM</div></div>
           <div class="page-actions"><button class="btn ghost" id="lv-refresh">↻ Refrescar</button></div>
         </div>
 

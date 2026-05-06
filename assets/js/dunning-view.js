@@ -16,7 +16,7 @@
 
       view.innerHTML = `
         <div class="page-head">
-          <div><div class="page-title">Dunning</div><div class="page-sub" id="dv-sub">NEGOCIO · COBRANZA AUTOMATIZADA</div></div>
+          <div><div class="page-title">Cobranza</div><div class="page-sub" id="dv-sub">NEGOCIO · COBRANZA AUTOMATIZADA</div></div>
           <div class="page-actions">
             <button class="btn ghost" id="dv-refresh">↻ Refrescar</button>
             <button class="btn primary" id="dv-run-sweep">⚡ Correr sweep ahora</button>

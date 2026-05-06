@@ -10,18 +10,38 @@
 
   // Catálogo de recursos + acciones disponibles (UI).
   // La fuente de verdad son los scopes que guarda cada role en user_roles.scopes.
+  // v1.0.17 · sincronizado con vistas reales del sidebar (visibles + ocultas).
+  // Recursos marcados con `hidden:true` corresponden a vistas ocultas hoy del sidebar
+  // (handlers vivos · accesibles via go() o ⌘K) · permisos siguen vivos para cuando
+  // se reactiven en el sidebar.
   const RESOURCES = [
-    { key: 'clients',       label: 'Clientes',       actions: ['read','write','*'] },
-    { key: 'leads',         label: 'Leads',          actions: ['read','rw','*'] },
-    { key: 'appointments',  label: 'Citas',          actions: ['read','rw','*'] },
-    { key: 'users',         label: 'Usuarios',       actions: ['read','rw','*'] },
-    { key: 'integrations',  label: 'Integraciones',  actions: ['read','rw','*'] },
-    { key: 'api_keys',      label: 'API Keys',       actions: ['read','rw','*'] },
-    { key: 'webhooks',      label: 'Webhooks',       actions: ['read','rw','*'] },
-    { key: 'audit',         label: 'Auditoría',      actions: ['read'] },
-    { key: 'reports',       label: 'Reportes',       actions: ['read','rw','*'] },
-    { key: 'ia_suggestions',label: 'ARIA / IA',      actions: ['read','rw'] },
-    { key: 'billing',       label: 'Facturación',    actions: ['read','rw','*'] }
+    // ── Negocio ──
+    { key: 'revenue',       label: 'Ingresos & MRR', actions: ['read'],            group: 'Negocio' },
+    { key: 'invoices',      label: 'Facturas',       actions: ['read','rw','*'],   group: 'Negocio' },
+    { key: 'subs',          label: 'Suscripciones',  actions: ['read','rw','*'],   group: 'Negocio' },
+    { key: 'dunning',       label: 'Cobranza',       actions: ['read','rw','*'],   group: 'Negocio' },
+    { key: 'payouts',       label: 'Liquidaciones',  actions: ['read','rw','*'],   group: 'Negocio' },
+    { key: 'billing',       label: 'Facturación (general)', actions: ['read','rw','*'], group: 'Negocio' },
+    // ── Operación ──
+    { key: 'clients',       label: 'Clientes',       actions: ['read','write','*'],group: 'Operación' },
+    { key: 'leads',         label: 'Leads',          actions: ['read','rw','*'],   group: 'Operación' },
+    { key: 'appointments',  label: 'Citas',          actions: ['read','rw','*'],   group: 'Operación' },
+    { key: 'funnel',        label: 'Embudo',         actions: ['read'],            group: 'Operación' },
+    // ── Sistema ──
+    { key: 'status',        label: 'Estado del Sistema', actions: ['read'],        group: 'Sistema' },
+    { key: 'incidents',     label: 'Incidencias',    actions: ['read','rw','*'],   group: 'Sistema' },
+    { key: 'audit',         label: 'Auditoría',      actions: ['read'],            group: 'Sistema', hidden: true },
+    // ── Soporte ──
+    { key: 'tickets',       label: 'Tickets',        actions: ['read','rw','*'],   group: 'Soporte' },
+    { key: 'reports',       label: 'Reportes',       actions: ['read','rw','*'],   group: 'Soporte' },
+    // ── Plataforma ──
+    { key: 'integrations',  label: 'Integraciones',  actions: ['read','rw','*'],   group: 'Plataforma' },
+    { key: 'webhooks',      label: 'Webhooks',       actions: ['read','rw','*'],   group: 'Plataforma', hidden: true },
+    { key: 'api_keys',      label: 'Llaves API',     actions: ['read','rw','*'],   group: 'Plataforma', hidden: true },
+    // ── Equipo ──
+    { key: 'users',         label: 'Usuarios',       actions: ['read','rw','*'],   group: 'Equipo' },
+    // ── ARIA ──
+    { key: 'ia_suggestions',label: 'ARIA / IA',      actions: ['read','rw'],       group: 'ARIA' },
   ];
 
   const RolesView = {
@@ -114,17 +134,26 @@
         </tr>
       `;
 
-      // Body: resources × roles
+      // Body: resources × roles · agrupados por categoría con header de grupo
       const tbody = matrix.querySelector('tbody');
+      const colCount = this._roles.length + 2; // recurso + roles + acciones
+      let lastGroup = null;
       tbody.innerHTML = RESOURCES.map(res => {
         const cells = this._roles.map(role => {
           const has = this._roleHasResource(role, res.key);
           return `<td style="text-align:center;">${this._renderScopeCell(role, res.key, has)}</td>`;
         }).join('');
-        return `
+        const groupHeader = (res.group && res.group !== lastGroup)
+          ? `<tr><td colspan="${colCount}" style="padding:14px 14px 6px;background:var(--bg2);"><div style="font-size:9px;letter-spacing:1.5px;color:var(--text3);font-family:'Geist Mono',monospace;text-transform:uppercase;">${escapeHtml(res.group)}</div></td></tr>`
+          : '';
+        if(res.group) lastGroup = res.group;
+        const hiddenBadge = res.hidden
+          ? `<span style="font-size:8px;background:var(--card3);color:var(--text3);padding:1px 5px;border-radius:3px;margin-left:6px;letter-spacing:0.5px;text-transform:uppercase;font-family:'Geist Mono',monospace;" title="Vista oculta del sidebar v1.0.16 · permiso vivo · accesible vía ⌘K">oculta</span>`
+          : '';
+        return groupHeader + `
           <tr>
             <td>
-              <div style="font-weight:500;">${escapeHtml(res.label)}</div>
+              <div style="font-weight:500;display:flex;align-items:center;">${escapeHtml(res.label)}${hiddenBadge}</div>
               <div class="dim" style="font-size:9px;font-family:'Geist Mono',monospace;">${res.key}</div>
             </td>
             ${cells}
@@ -202,12 +231,20 @@
     _openEditor(existing){
       const scopes = new Set(existing?.scopes || []);
 
+      let lastGroupModal = null;
       const resourceInputs = RESOURCES.map(res => {
         const currentLevel = this._levelFromScopes(scopes, res.key);
-        return `
+        const groupHeader = (res.group && res.group !== lastGroupModal)
+          ? `<div style="font-size:9px;letter-spacing:1.5px;color:var(--text3);font-family:'Geist Mono',monospace;margin:14px 0 4px;text-transform:uppercase;padding:0 8px;">${escapeHtml(res.group)}</div>`
+          : '';
+        if(res.group) lastGroupModal = res.group;
+        const hiddenBadge = res.hidden
+          ? `<span style="font-size:8px;background:var(--card3);color:var(--text3);padding:1px 5px;border-radius:3px;margin-left:6px;letter-spacing:0.5px;text-transform:uppercase;font-family:'Geist Mono',monospace;" title="Vista oculta del sidebar v1.0.16">oculta</span>`
+          : '';
+        return groupHeader + `
           <div style="display:flex;align-items:center;gap:10px;padding:8px;border-bottom:1px dashed var(--border);">
             <div style="flex:1;">
-              <div style="font-weight:500;font-size:12px;">${escapeHtml(res.label)}</div>
+              <div style="font-weight:500;font-size:12px;display:flex;align-items:center;">${escapeHtml(res.label)}${hiddenBadge}</div>
               <div class="dim" style="font-size:9px;font-family:'Geist Mono',monospace;">${res.key}</div>
             </div>
             <select data-res="${res.key}" class="rv-level" style="background:var(--card2);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:4px;font-size:11px;">

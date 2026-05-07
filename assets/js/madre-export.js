@@ -27,9 +27,26 @@
     return s;
   }
 
+  // v1.0.27 · Garantiza filename único por segundo
+  // Patrón final: prefijo + _YYYY-MM-DD_HH-MM-SS + .csv
+  // Si el caller pasó una fecha al final (legacy YYYY-MM-DD), la sobreescribe.
+  function uniquifyFilename(filename){
+    if(!filename) filename = 'export.csv';
+    // Quitar extensión .csv si existe
+    let base = filename.replace(/\.csv$/i, '');
+    // Quitar fecha trailing legacy (-YYYY-MM-DD)
+    base = base.replace(/-\d{4}-\d{2}-\d{2}$/, '');
+    // Construir timestamp local (no UTC, para que coincida con la zona del usuario)
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const stamp = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}`;
+    return `${base}_${stamp}.csv`;
+  }
+
   const MadreExport = {
     csv({ filename, headers, rows }){
-      if(!filename) filename = `export-${new Date().toISOString().slice(0,10)}.csv`;
+      // v1.0.27 · auto-uniquify para evitar colisiones en misma fecha
+      filename = uniquifyFilename(filename);
       const lines = [];
       // BOM para que Excel detecte UTF-8
       const bom = '﻿';

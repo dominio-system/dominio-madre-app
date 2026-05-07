@@ -88,12 +88,16 @@
       ];
       document.getElementById('fv-stages').innerHTML = this._renderFunnel(leadStages);
 
+      // v1.0.32 · Funnel completo de citas · 6 stages que reflejan los 5 estados DB + flag pagado
+      // Orden lógico del ciclo de vida: pending → confirmed → completed → paid (success path)
+      // Errores: no_show, cancelled
       const apptStages = [
+        { label: 'Pendientes',  count: d.pending   || 0, color: 'var(--text3)' },
         { label: 'Confirmadas', count: d.confirmed || 0, color: 'var(--warn)' },
         { label: 'Completadas', count: d.completed || 0, color: 'var(--success)' },
         { label: 'Pagadas',     count: d.paid      || 0, color: 'var(--success)' },
         { label: 'No-show',     count: d.no_show   || 0, color: 'var(--danger)' },
-        { label: 'Canceladas',  count: d.canceled  || 0, color: 'var(--text3)' }
+        { label: 'Canceladas',  count: d.canceled  || 0, color: 'var(--danger)' }
       ];
       const maxAppt = Math.max(1, ...apptStages.map(s => s.count));
       apptStages.forEach(s => s.pct = Math.round((s.count/maxAppt)*100));

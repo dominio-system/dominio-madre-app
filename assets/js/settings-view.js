@@ -116,6 +116,7 @@
         if(!confirm('¿Quitar foto de perfil?')) return;
         try { localStorage.removeItem('madre-avatar'); } catch(e){}
         this.renderCuenta();
+        global.syncSidebarUser?.(); // v1.0.29 · sync sidebar bottom inmediato
         global.toast?.('Foto eliminada', 'warn');
       });
       fileInput?.addEventListener('change', (e) => {
@@ -134,6 +135,7 @@
           try {
             localStorage.setItem('madre-avatar', ev.target.result);
             this.renderCuenta();
+            global.syncSidebarUser?.(); // v1.0.29 · sync sidebar bottom inmediato
             global.toast?.('Foto actualizada', 'success');
           } catch(err){
             global.toast?.('No se pudo guardar (storage lleno?)', 'err');

@@ -1288,15 +1288,30 @@ renderBars();
   await loadSession();
   if(!SESSION) return; // ya redirigió a login
 
-  // Actualizar UI con nombre del user logueado
-  try {
-    const avatarEl = document.querySelector('.user-avatar');
-    const nameEl = document.querySelector('.user-name');
-    const roleEl = document.querySelector('.user-role');
-    if(avatarEl && USER) avatarEl.textContent = (USER.fullName || USER.email || '?')[0].toUpperCase();
-    if(nameEl && USER) nameEl.textContent = USER.fullName || USER.email;
-    if(roleEl && USER) roleEl.textContent = USER.roleLabel || USER.role?.toUpperCase();
-  } catch(e){}
+  // Actualizar UI con nombre del user logueado + avatar (v1.0.29 · sync con Settings)
+  function syncSidebarUser(){
+    try {
+      const avatarEl = document.querySelector('.user-avatar');
+      const nameEl = document.querySelector('.user-name');
+      const roleEl = document.querySelector('.user-role');
+      if(nameEl && USER) nameEl.textContent = USER.fullName || USER.email;
+      if(roleEl && USER) roleEl.textContent = USER.roleLabel || USER.role?.toUpperCase();
+      if(!avatarEl) return;
+      // Lee foto desde localStorage (donde Settings la guarda)
+      let avatarUrl = null;
+      try { avatarUrl = localStorage.getItem('madre-avatar'); } catch(e){}
+      if(avatarUrl){
+        avatarEl.innerHTML = `<img src="${avatarUrl}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+      } else if(USER){
+        avatarEl.textContent = (USER.fullName || USER.email || '?')[0].toUpperCase();
+      }
+    } catch(e){}
+  }
+  syncSidebarUser();
+  // v1.0.29 · Listener para sync inmediato cuando Settings cambia el avatar
+  window.addEventListener('storage', (e) => { if(e.key === 'madre-avatar') syncSidebarUser(); });
+  // Y exponer globalmente para que settings-view lo llame directamente (mismo tab)
+  window.syncSidebarUser = syncSidebarUser;
 
   // Init RBAC (Fase 1) — carga scopes del team_member activo
   if(window.RBAC && USER){

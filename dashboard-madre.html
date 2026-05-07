@@ -783,7 +783,7 @@ body.notif-open .notif-overlay{pointer-events:auto;}
 
     <!-- CLIENTS -->
     <div class="view" data-view="clients">
-      <div class="page-head"><div><div class="page-title">Clientes</div><div class="page-sub">ORGANIZACIÓN · DASHBOARDS CLIENTE · REALTIME</div></div><div class="page-actions"><button class="btn ghost" onclick="window.MadreClientsList?._exportCsv?.()" title="Descargar CSV">⬇ CSV</button><button class="btn primary">+ Nuevo cliente</button></div></div>
+      <div class="page-head"><div><div class="page-title">Clientes</div><div class="page-sub">ORGANIZACIÓN · DASHBOARDS CLIENTE · REALTIME</div></div><div class="page-actions"><button class="btn ghost" onclick="window.MadreClientsList?._exportCsv?.()" title="Descargar CSV">⬇ CSV</button><button class="btn primary" onclick="window.openClientOnboard?.()">+ Nuevo cliente</button></div></div>
       <div class="kpi-strip">
         <div class="kpi-card"><div class="kpi-label">CLIENTES ACTIVOS</div><div class="kpi-value" id="cl-active">0</div><div class="kpi-trend up">total</div></div>
         <div class="kpi-card"><div class="kpi-label">MRR CONSOLIDADO</div><div class="kpi-value" id="cl-mrr">$0</div><div class="kpi-trend">suma tickets</div></div>
@@ -872,6 +872,8 @@ body.notif-open .notif-overlay{pointer-events:auto;}
 <script src="assets/js/cliente-detail.js"></script>
 <script src="assets/js/madre-export.js"></script>
 <script src="assets/js/team-view.js"></script>
+<!-- v1.0.34 · Onboard wizard nuevo cliente -->
+<script src="assets/js/client-onboard.js"></script>
 <script src="assets/js/docs-view.js"></script>
 <!-- Fase 1B/2 v1.0.7 · Sistema (Status, Incidents, Audit) -->
 <script src="assets/js/status-view.js"></script>

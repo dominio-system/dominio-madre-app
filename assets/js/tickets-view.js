@@ -10,6 +10,11 @@
     _selected: null,
     _messages: [],
     _filter: 'open',
+    // v1.0.23 · Cache de mensajes por ticket_id (TTL 30s)
+    _messagesCache: new Map(),  // ticket_id → { msgs, fetchedAt }
+    _MESSAGES_TTL_MS: 30000,
+    // Cache de internalCount por ticket_id (para badge en lista)
+    _internalCounts: new Map(),
 
     async render(){
       const view = document.querySelector('.view[data-view="tickets"]');
@@ -79,8 +84,29 @@
         this.renderKPIs();
         this.renderList();
         document.getElementById('tv-sub').textContent = `SOPORTE · ${this._tickets.length} TICKETS`;
+        // v1.0.23 · Background prefetch de internal_counts (no bloqueante)
+        this._prefetchInternalCounts().catch(()=>{});
       } catch(err){
         document.getElementById('tv-sub').textContent = 'ERROR · ' + err.message;
+      }
+    },
+
+    // v1.0.23 · Single query que trae counts de notas internas para badges en lista
+    async _prefetchInternalCounts(){
+      try {
+        // PostgREST: GET /ticket_messages?select=ticket_id&is_internal=eq.true → array de rows
+        // luego agrupamos client-side. Eficiente porque solo trae 1 columna.
+        const rows = await global.sbGet('ticket_messages', 'select=ticket_id&is_internal=eq.true&limit=2000');
+        const counts = new Map();
+        (rows || []).forEach(r => {
+          counts.set(r.ticket_id, (counts.get(r.ticket_id) || 0) + 1);
+        });
+        // Reset solo los IDs que conocemos
+        this._internalCounts = counts;
+        // Re-render lista para que aparezcan badges
+        this.renderList();
+      } catch(e){
+        // Silencioso: el badge no es crítico
       }
     },
 
@@ -117,6 +143,11 @@
         const priColor = t.priority === 'urgent' ? 'var(--danger)' : t.priority === 'high' ? 'var(--warn)' : 'var(--text3)';
         const isSelected = this._selected?.id === t.id;
         const sla = t.sla_breached ? '<span class="chip chip-err" style="font-size:8px;">SLA!</span>' : '';
+        // v1.0.23 · Indicador de notas internas (consultado desde cache calculado en _loadMessages)
+        const internalCount = this._internalCounts.get(t.id) || 0;
+        const internalBadge = internalCount > 0
+          ? `<span style="font-size:9px;color:var(--warn);font-family:'Geist Mono',monospace;" title="${internalCount} nota${internalCount===1?'':'s'} interna${internalCount===1?'':'s'}">🔒 ${internalCount}</span>`
+          : '';
         return `
           <div class="tv-item" onclick="TicketsView.selectTicket('${t.id}')" style="padding:10px 12px;border-bottom:1px solid var(--border);cursor:pointer;${isSelected ? 'background:var(--card2);' : ''}">
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
@@ -128,6 +159,7 @@
             <div style="display:flex;align-items:center;gap:6px;font-size:9px;">
               <span class="chip chip-${t.status==='resolved' || t.status==='closed' ? 'ok' : t.status==='pending' ? 'warn' : 'off'}" style="font-size:8px;padding:1px 5px;">${escapeHtml((t.status||'—').toUpperCase())}</span>
               <span class="dim">${t.message_count||0} msg</span>
+              ${internalBadge}
               <span class="dim" style="margin-left:auto;">${timeAgo(t.updated_at || t.created_at)}</span>
             </div>
           </div>`;
@@ -137,20 +169,61 @@
     async selectTicket(id){
       const t = this._tickets.find(x => x.id === id);
       if(!t) return;
+      const sameTicket = this._selected?.id === id;
       this._selected = t;
       this.renderList();
-      await this.renderDetail();
+      // v1.0.23 · Skeleton instantáneo (no esperar fetch)
+      if(!sameTicket) this._renderSkeleton(t);
+      await this.renderDetail({ useCache: true });
     },
 
-    async renderDetail(){
+    _renderSkeleton(t){
+      const detail = document.getElementById('tv-detail');
+      if(!detail) return;
+      detail.innerHTML = `
+        <div style="padding:14px 18px;border-bottom:1px solid var(--border);">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+            <strong style="font-size:14px;flex:1;">${escapeHtml(t.subject || '')}</strong>
+          </div>
+          <div class="dim" style="font-size:10px;font-family:'Geist Mono',monospace;">Cargando hilo…</div>
+        </div>
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:11px;">
+          <div style="text-align:center;">
+            <div style="width:20px;height:20px;border:2px solid var(--border2);border-top-color:var(--text2);border-radius:50%;margin:0 auto 8px;animation:tv-spin 0.8s linear infinite;"></div>
+            <style>@keyframes tv-spin{to{transform:rotate(360deg)}}</style>
+            Cargando mensajes…
+          </div>
+        </div>`;
+    },
+
+    async _loadMessages(ticketId, opts = {}){
+      const useCache = opts.useCache !== false;
+      const cached = this._messagesCache.get(ticketId);
+      if(useCache && cached && (Date.now() - cached.fetchedAt) < this._MESSAGES_TTL_MS){
+        return cached.msgs;
+      }
+      try {
+        const msgs = await global.sbGet('ticket_messages', `ticket_id=eq.${ticketId}&select=*&order=created_at.asc`) || [];
+        this._messagesCache.set(ticketId, { msgs, fetchedAt: Date.now() });
+        // Actualizar count de notas internas
+        this._internalCounts.set(ticketId, msgs.filter(m => m.is_internal).length);
+        return msgs;
+      } catch(e){
+        return cached?.msgs || [];
+      }
+    },
+
+    _invalidateMessageCache(ticketId){
+      this._messagesCache.delete(ticketId);
+    },
+
+    async renderDetail(opts = {}){
       const t = this._selected;
       if(!t){ return; }
       const detail = document.getElementById('tv-detail');
 
-      // Cargar mensajes
-      try {
-        this._messages = await global.sbGet('ticket_messages', `ticket_id=eq.${t.id}&select=*&order=created_at.asc`) || [];
-      } catch(e){ this._messages = []; }
+      // v1.0.23 · Cache + parallel-safe
+      this._messages = await this._loadMessages(t.id, { useCache: opts.useCache !== false });
 
       const priChip = t.priority === 'urgent' ? '<span class="chip chip-err">URGENT</span>'
                     : t.priority === 'high'   ? '<span class="chip chip-warn">HIGH</span>'
@@ -160,6 +233,11 @@
         ? '<span class="chip chip-ok"><span class="chip-dot"></span>' + (t.status||'').toUpperCase() + '</span>'
         : '<span class="chip chip-warn"><span class="chip-dot"></span>' + (t.status||'NEW').toUpperCase() + '</span>';
 
+      // v1.0.23 · Contadores de mensajes (públicos vs notas internas)
+      const totalMsgs = this._messages.length;
+      const internalCount = this._messages.filter(m => m.is_internal).length;
+      const publicCount = totalMsgs - internalCount;
+
       detail.innerHTML = `
         <div style="padding:14px 18px;border-bottom:1px solid var(--border);">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
@@ -167,7 +245,14 @@
             ${priChip}${statusChip}
           </div>
           <div class="dim" style="font-size:10px;font-family:'Geist Mono',monospace;">${escapeHtml(t.requester_name || '')} · ${escapeHtml(t.requester_email)} · ${t.source||'web'}</div>
-          <div class="dim" style="font-size:10px;margin-top:3px;">Cliente: ${escapeHtml(t.client_empresa || '—')} · Asignado: ${escapeHtml(t.assignee_name || 'sin asignar')}</div>
+          <div class="dim" style="font-size:10px;margin-top:3px;display:flex;gap:10px;align-items:center;">
+            <span>Cliente: ${escapeHtml(t.client_empresa || '—')}</span>
+            <span>·</span>
+            <span>Asignado: ${escapeHtml(t.assignee_name || 'sin asignar')}</span>
+            <span style="margin-left:auto;font-family:'Geist Mono',monospace;">
+              ${publicCount} pública${publicCount===1?'':'s'}${internalCount > 0 ? ` · <span style="color:var(--warn);">🔒 ${internalCount} nota${internalCount===1?'':'s'} interna${internalCount===1?'':'s'}</span>` : ''}
+            </span>
+          </div>
         </div>
 
         <div id="tv-thread" style="flex:1;overflow-y:auto;padding:14px 18px;">
@@ -175,15 +260,27 @@
             <div class="dim" style="font-size:10px;margin-bottom:5px;">${escapeHtml(t.requester_name || t.requester_email)} · ${new Date(t.created_at).toLocaleString()}</div>
             <div style="font-size:12px;white-space:pre-wrap;">${escapeHtml(t.body || '')}</div>
           </div>
-          ${this._messages.map(m => `
-            <div style="padding:12px;background:${m.author_type==='agent' ? 'var(--aria-s)' : 'var(--card2)'};border-radius:6px;margin-bottom:10px;${m.is_internal ? 'border-left:3px solid var(--warn);' : ''}">
+          ${this._messages.map(m => {
+            const isInt = !!m.is_internal;
+            const bgInternal = 'background:rgba(255,176,32,0.10);border:1px solid rgba(255,176,32,0.30);border-left:4px solid var(--warn);';
+            const bgAgent    = 'background:var(--aria-s);';
+            const bgCustomer = 'background:var(--card2);';
+            const blockStyle = isInt ? bgInternal : (m.author_type === 'agent' ? bgAgent : bgCustomer);
+            return `
+            <div style="padding:12px 14px;${blockStyle}border-radius:6px;margin-bottom:10px;">
+              ${isInt ? `
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px dashed rgba(255,176,32,0.4);">
+                  <span style="font-size:13px;">🔒</span>
+                  <span style="font-size:10px;font-family:'Geist Mono',monospace;letter-spacing:1.5px;text-transform:uppercase;color:var(--warn);font-weight:600;">NOTA INTERNA · solo visible para tu equipo</span>
+                </div>
+              ` : ''}
               <div class="dim" style="font-size:10px;margin-bottom:5px;">
                 ${escapeHtml(m.author_email || m.author_type)} · ${new Date(m.created_at).toLocaleString()}
-                ${m.is_internal ? '<span class="chip chip-warn" style="font-size:8px;margin-left:6px;">NOTA INTERNA</span>' : ''}
+                ${m.author_type === 'agent' && !isInt ? '<span class="chip chip-ok" style="font-size:8px;margin-left:6px;">✉ ENVIADO AL CLIENTE</span>' : ''}
               </div>
-              <div style="font-size:12px;white-space:pre-wrap;">${escapeHtml(m.body)}</div>
-            </div>
-          `).join('')}
+              <div style="font-size:12px;white-space:pre-wrap;line-height:1.5;">${escapeHtml(m.body)}</div>
+            </div>`;
+          }).join('')}
         </div>
 
         <div style="padding:12px 14px;border-top:1px solid var(--border);">
@@ -203,8 +300,10 @@
       const body = document.getElementById('tv-reply').value.trim();
       if(!body){ global.toast?.('Escribe algo', 'err'); return; }
       const isInternal = document.getElementById('tv-internal').checked;
+      const btn = event?.target;
+      if(btn){ btn.disabled = true; btn.textContent = 'Guardando…'; }
       try {
-        await global.sbInsert('ticket_messages', {
+        const inserted = await global.sbInsert('ticket_messages', {
           ticket_id: ticketId,
           author_type: 'agent',
           author_id: global.RBAC?._userId || null,
@@ -216,13 +315,27 @@
         const t = this._tickets.find(x => x.id === ticketId);
         if(!isInternal && t?.status === 'new'){
           await global.sbPatch('tickets', ticketId, { status: 'pending', first_response_at: t.first_response_at || new Date().toISOString() });
+          if(t){ t.status = 'pending'; t.first_response_at = t.first_response_at || new Date().toISOString(); }
+        }
+        // v1.0.23 · Optimistic update: agregamos el mensaje al cache local
+        // sin re-fetch del array completo de tickets (-300ms)
+        const newMsg = Array.isArray(inserted) ? inserted[0] : inserted;
+        const cached = this._messagesCache.get(ticketId);
+        if(cached && newMsg){
+          cached.msgs.push(newMsg);
+          cached.fetchedAt = Date.now();
+        } else {
+          this._invalidateMessageCache(ticketId);
         }
         document.getElementById('tv-reply').value = '';
-        global.toast?.(isInternal ? 'Nota guardada' : 'Respuesta enviada', 'success');
-        await this.load();
-        this._selected = this._tickets.find(x => x.id === ticketId) || null;
-        await this.renderDetail();
-      } catch(err){ global.toast?.('Error: ' + err.message, 'err'); }
+        document.getElementById('tv-internal').checked = false;
+        global.toast?.(isInternal ? '🔒 Nota interna guardada' : 'Respuesta guardada', 'success');
+        // Refresh detail (usa cache · instant) sin re-fetch tickets list
+        await this.renderDetail({ useCache: true });
+      } catch(err){
+        if(btn){ btn.disabled = false; btn.textContent = 'Guardar nota'; }
+        global.toast?.('Error: ' + err.message, 'err');
+      }
     },
 
     // Legacy · solo cambia status sin email (kept for compat con accesos antiguos)
@@ -317,10 +430,22 @@
           // Limpiar textarea
           const ta = document.getElementById('tv-reply');
           if(ta) ta.value = '';
-          global.toast?.(`✓ Email enviado a ${t.requester_email}`, 'success');
-          await this.load();
-          this._selected = this._tickets.find(x => x.id === ticketId) || null;
-          await this.renderDetail();
+          // v1.0.23 · Update local sin re-fetch de tickets list
+          if(t){
+            t.status = alsoClose ? 'closed' : 'resolved';
+            t.resolved_at = new Date().toISOString();
+            if(alsoClose) t.closed_at = t.resolved_at;
+          }
+          this._invalidateMessageCache(ticketId); // re-fetch para incluir el ticket_message del agente
+          this.renderKPIs();
+          this.renderList();
+          // Mensaje según email_sent (best-effort en backend)
+          if(data.email_sent){
+            global.toast?.(`✓ Email enviado a ${t.requester_email}`, 'success');
+          } else {
+            global.toast?.(`Ticket resuelto · email FALLÓ: ${data.email_error?.message || 'unknown'}`, 'warn');
+          }
+          await this.renderDetail({ useCache: false });
         } catch(err){
           btn.disabled = false;
           btn.textContent = '✓ Resolver y enviar';

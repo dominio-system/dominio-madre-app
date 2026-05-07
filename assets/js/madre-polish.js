@@ -563,13 +563,15 @@
           .subscribe();
         this._channels.push(ch1);
 
-        // Canal: tickets
+        // Canal: tickets + ticket_messages (v1.0.23)
         const ch2 = sb.channel('madre-tickets')
           .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tickets' }, (p) => {
             global.toast?.('📋 Nuevo ticket: ' + (p.new?.subject || ''), 'warn');
             this._onTicketChange();
           })
           .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets' }, () => this._onTicketChange())
+          // v1.0.23 · INSERT de ticket_messages → invalidar cache + refresh detail si está abierto
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ticket_messages' }, (p) => this._onTicketMessageChange(p))
           .subscribe();
         this._channels.push(ch2);
 
@@ -614,6 +616,28 @@
       Cache.invalidate('v_command_center');
       if(global.currentView === 'tickets') global.TicketsView?.load?.();
       if(global.currentView === 'command') loadCommandCenterReal();
+    },
+
+    // v1.0.23 · Nuevo mensaje (ticket_messages INSERT)
+    _onTicketMessageChange(payload){
+      const ticketId = payload?.new?.ticket_id;
+      if(!ticketId) return;
+      const tv = global.TicketsView;
+      if(!tv) return;
+      // Invalida el cache local del ticket
+      tv._invalidateMessageCache?.(ticketId);
+      // Si la vista activa es tickets:
+      if(global.currentView !== 'tickets') return;
+      // Refrescar prefetch de internal counts (rápido · 1 query)
+      tv._prefetchInternalCounts?.();
+      // Si el detail abierto es ESE ticket, re-render con fetch fresco
+      if(tv._selected?.id === ticketId){
+        tv.renderDetail?.({ useCache: false });
+        // Toast solo si el autor es el cliente (no nuestro propio reply)
+        if(payload.new.author_type === 'customer'){
+          global.toast?.('💬 Nueva respuesta del cliente', 'success');
+        }
+      }
     },
     _onCommandChange(){
       Cache.invalidate('v_command_center');

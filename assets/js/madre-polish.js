@@ -611,7 +611,7 @@
         const ch4 = sb.channel('madre-pulse')
           .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'leads' }, () => this._onCommandChange())
           .on('postgres_changes', { event: '*',     schema: 'public', table: 'appointments' }, () => this._onCommandChange())
-          .on('postgres_changes', { event: '*',     schema: 'public', table: 'clients' }, () => this._onCommandChange())
+          .on('postgres_changes', { event: '*',     schema: 'public', table: 'clients' }, (p) => this._onClientChange(p))
           .subscribe();
         this._channels.push(ch4);
 
@@ -660,6 +660,29 @@
         }
       }
     },
+    // v1.0.35 · Notificación específica cuando llega cliente nuevo (Stripe webhook o founder manual)
+    _onClientChange(payload){
+      // Toast solo si es INSERT y NO es is_demo
+      if(payload.eventType === 'INSERT' && payload.new && !payload.new.is_demo){
+        const c = payload.new;
+        const empresa = c.empresa || c.nombre || 'Cliente sin nombre';
+        const isTrial = c.status === 'trial';
+        const planLabel = (c.plan || 'pro').toUpperCase();
+        global.toast?.(
+          `🟢 Nuevo cliente · ${empresa} · ${planLabel}${isTrial ? ' · trial' : ''}`,
+          'success'
+        );
+        // Forzar refresh general
+        Cache.invalidate('v_command_center');
+        Cache.invalidate('v_clients_full');
+        if(global.currentView === 'clients') global.MadreClientsList?.load?.();
+        if(global.currentView === 'command') loadCommandCenterReal();
+      } else {
+        // UPDATE / DELETE · solo invalidar caches
+        this._onCommandChange();
+      }
+    },
+
     _onCommandChange(){
       Cache.invalidate('v_command_center');
       Cache.invalidate('v_kpi_sparkline');

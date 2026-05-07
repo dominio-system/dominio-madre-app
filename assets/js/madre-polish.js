@@ -513,6 +513,27 @@
     nextPage(){
       const pages = Math.ceil(this._filtered().length / this._pageSize);
       if(this._page < pages - 1){ this._page++; this.render(); }
+    },
+
+    // v1.0.26 · Export CSV con filtros aplicados
+    _exportCsv(){
+      const rows = this._filtered();
+      if(!global.MadreExport){ global.toast?.('Export module no cargado', 'err'); return; }
+      global.MadreExport.csv({
+        filename: `clientes-${new Date().toISOString().slice(0,10)}.csv`,
+        headers: ['ID','Empresa','Nombre','Email','WhatsApp','Pais','Industria','Plan','Status','Moneda','MRR (cents)','Revenue 30d (cents)','Leads 30d','Citas 30d','Tickets Abiertos','Churn Risk','Created','Activated','Trial Ends'],
+        rows: rows.map(c => [
+          c.id || '', c.empresa || '', c.nombre || '', c.email || '',
+          c.whatsapp || '', c.pais || '', c.industria || '',
+          c.plan || '', c.client_status || '', c.moneda || '',
+          c.mrr_cents || 0, c.revenue_30d_cents || 0,
+          c.total_leads_30d || c.leads_30d || 0,
+          c.citas_confirmadas || c.appointments_30d || 0,
+          c.tickets_open || 0,
+          c.churn_risk || '',
+          c.created_at || '', c.activated_at || '', c.trial_ends_at || '',
+        ]),
+      });
     }
   };
   global.MadreClientsList = ClientsList;
@@ -703,7 +724,34 @@
 
     // Activar realtime
     Realtime.init();
+
+    // v1.0.26 · SLA breach polling · cada 60s
+    pollSlaBreach();
+    setInterval(pollSlaBreach, 60000);
   };
+
+  // v1.0.26 · SLA breach chip · cuenta tickets abiertos con sla_deadline < now
+  async function pollSlaBreach(){
+    try {
+      const nowIso = new Date().toISOString();
+      const rows = await global.sbGet('tickets',
+        `select=id&status=in.(new,open,pending,waiting_customer)&sla_deadline=lt.${encodeURIComponent(nowIso)}&limit=200`
+      ).catch(() => []);
+      const count = Array.isArray(rows) ? rows.length : 0;
+      const pill = document.getElementById('sla-breach-pill');
+      const countEl = document.getElementById('sla-breach-count');
+      if(!pill || !countEl) return;
+      if(count > 0){
+        countEl.textContent = count;
+        pill.style.display = 'inline-flex';
+      } else {
+        pill.style.display = 'none';
+      }
+    } catch(e){
+      // silencioso · no bloquea el dashboard
+    }
+  }
+  global.pollSlaBreach = pollSlaBreach;
 
   global.loadCommandCenterReal = loadCommandCenterReal;
 

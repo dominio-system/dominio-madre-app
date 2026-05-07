@@ -16,7 +16,10 @@
       view.innerHTML = `
         <div class="page-head">
           <div><div class="page-title">Fuentes de Leads</div><div class="page-sub" id="lv-sub">OPERACIÓN · ATRIBUCIÓN POR UTM</div></div>
-          <div class="page-actions"><button class="btn ghost" id="lv-refresh">↻ Refrescar</button></div>
+          <div class="page-actions">
+            <button class="btn ghost" id="lv-refresh">↻ Refrescar</button>
+            <button class="btn ghost" id="lv-export" title="Descargar CSV">⬇ CSV</button>
+          </div>
         </div>
 
         <div class="kpi-strip">
@@ -49,6 +52,16 @@
       `;
 
       document.getElementById('lv-refresh').onclick = () => this.load();
+      document.getElementById('lv-export').onclick = () => MadreExport.csv({
+        filename: `lead-sources-${new Date().toISOString().slice(0,10)}.csv`,
+        headers: ['Source','Medium','Campaign','Leads','Calificados','Convertidos','Conversion %','Avg Intent Score','First Lead','Last Lead'],
+        rows: (this._sources || []).map(s => [
+          s.source, s.medium, s.campaign,
+          s.leads_count, s.qualified, s.converted,
+          s.conversion_pct, s.avg_intent_score,
+          s.first_lead_at, s.last_lead_at
+        ]),
+      });
       await this.load();
     },
 

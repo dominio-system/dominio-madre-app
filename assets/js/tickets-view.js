@@ -10,6 +10,7 @@
     _selected: null,
     _messages: [],
     _filter: 'open',
+    _assigneeFilter: 'all', // v1.0.26 · 'all' | 'mine' | 'unassigned'
     // v1.0.23 · Cache de mensajes por ticket_id (TTL 30s)
     _messagesCache: new Map(),  // ticket_id → { msgs, fetchedAt }
     _MESSAGES_TTL_MS: 30000,
@@ -25,6 +26,7 @@
           <div><div class="page-title">Tickets</div><div class="page-sub" id="tv-sub">SOPORTE · CARGANDO…</div></div>
           <div class="page-actions">
             <button class="btn ghost" id="tv-refresh">↻ Refrescar</button>
+            <button class="btn ghost" id="tv-export" title="Descargar CSV">⬇ CSV</button>
             <button class="btn primary" id="tv-new">+ Crear ticket</button>
           </div>
         </div>
@@ -44,6 +46,10 @@
               <button class="filter-pill-btn" data-tf="pending" onclick="TicketsView.setFilter('pending')">⏱ Pending <span class="count">(<span data-tv-count="pending">0</span>)</span></button>
               <button class="filter-pill-btn" data-tf="resolved" onclick="TicketsView.setFilter('resolved')">✓ Resueltos <span class="count">(<span data-tv-count="resolved">0</span>)</span></button>
               <button class="filter-pill-btn" data-tf="all"     onclick="TicketsView.setFilter('all')">Todos <span class="count">(<span data-tv-count="all">0</span>)</span></button>
+              <span style="color:var(--text4);font-size:9px;margin:0 2px;">·</span>
+              <button class="filter-pill-btn active" data-ta="all" onclick="TicketsView.setAssignee('all')" style="font-size:10px;">Equipo</button>
+              <button class="filter-pill-btn" data-ta="mine" onclick="TicketsView.setAssignee('mine')" style="font-size:10px;">⭐ Mis asignados</button>
+              <button class="filter-pill-btn" data-ta="unassigned" onclick="TicketsView.setAssignee('unassigned')" style="font-size:10px;">⊘ Sin asignar</button>
             </div>
             <div id="tv-list" style="flex:1;overflow-y:auto;"></div>
           </div>
@@ -60,6 +66,19 @@
 
       document.getElementById('tv-refresh').onclick = () => this.load();
       document.getElementById('tv-new').onclick = () => this.openCreateModal();
+      document.getElementById('tv-export').onclick = () => MadreExport.csv({
+        filename: `tickets-${new Date().toISOString().slice(0,10)}.csv`,
+        headers: ['ID','Asunto','Cliente','Email','Status','Prioridad','Categoria','Source','SLA Deadline','SLA Breach','Created','First Response','Resolved','Closed','CSAT'],
+        rows: (this._filtered() || []).map(t => [
+          t.id?.slice(0,8) || '',
+          t.subject || '', t.client_empresa || '', t.requester_email || '',
+          t.status || '', t.priority || '', t.category || '', t.source || '',
+          t.sla_deadline || '', t.sla_breached ? 'YES' : 'no',
+          t.created_at || '', t.first_response_at || '',
+          t.resolved_at || '', t.closed_at || '',
+          t.satisfaction_score || '',
+        ]),
+      });
       if(global.RBAC) global.RBAC.disableIfCant(document.getElementById('tv-new'), 'tickets:rw');
       await this.load();
     },
@@ -74,6 +93,13 @@
         const el = document.querySelector(`[data-tv-count="${k}"]`);
         if(el) el.textContent = v;
       });
+      this.renderList();
+    },
+
+    // v1.0.26 · filtro de asignado (Enterprise · multi-agente)
+    setAssignee(a){
+      this._assigneeFilter = a;
+      document.querySelectorAll('.filter-pill-btn[data-ta]').forEach(t => t.classList.toggle('active', t.dataset.ta === a));
       this.renderList();
     },
 
@@ -125,11 +151,19 @@
     },
 
     _filtered(){
-      if(this._filter === 'all') return this._tickets;
-      if(this._filter === 'open')    return this._tickets.filter(t => ['new','open','waiting_customer'].includes(t.status));
-      if(this._filter === 'pending') return this._tickets.filter(t => t.status === 'pending');
-      if(this._filter === 'resolved') return this._tickets.filter(t => ['resolved','closed'].includes(t.status));
-      return this._tickets;
+      let out = this._tickets;
+      // Filtro status
+      if(this._filter === 'open')    out = out.filter(t => ['new','open','waiting_customer'].includes(t.status));
+      else if(this._filter === 'pending') out = out.filter(t => t.status === 'pending');
+      else if(this._filter === 'resolved') out = out.filter(t => ['resolved','closed'].includes(t.status));
+      // v1.0.26 · Filtro asignado
+      const myUserId = global.RBAC?._userId;
+      if(this._assigneeFilter === 'mine' && myUserId){
+        out = out.filter(t => t.assigned_to === myUserId);
+      } else if(this._assigneeFilter === 'unassigned'){
+        out = out.filter(t => !t.assigned_to);
+      }
+      return out;
     },
 
     renderList(){

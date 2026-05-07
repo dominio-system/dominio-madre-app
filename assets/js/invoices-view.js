@@ -12,6 +12,10 @@
     _clients: [],
     _subscriptions: [],
     _filter: { status: 'all', clientId: '', q: '', dateRange: 'all' },
+    // v1.0.26 · cursor pagination
+    _PAGE_SIZE: 100,
+    _hasMore: true,
+    _loadingMore: false,
 
     async render(){
       const view = document.querySelector('.view[data-view="invoices"]');
@@ -25,6 +29,7 @@
           </div>
           <div class="page-actions">
             <button class="btn ghost" id="iv-refresh">↻ Refrescar</button>
+            <button class="btn ghost" id="iv-export" title="Descargar CSV">⬇ CSV</button>
             <button class="btn primary" id="iv-new">+ Nueva factura</button>
           </div>
         </div>
@@ -81,6 +86,7 @@
 
       document.getElementById('iv-refresh').onclick = () => this.load();
       document.getElementById('iv-new').onclick = () => this.openCreateModal();
+      document.getElementById('iv-export').onclick = () => this.exportCsv();
       document.getElementById('iv-client-filter').onchange = (e) => this.setFilter('clientId', e.target.value);
       document.getElementById('iv-date-filter').onchange = (e) => this.setFilter('dateRange', e.target.value);
       const ivSearch = document.getElementById('iv-search');
@@ -107,23 +113,54 @@
     async load(){
       try {
         document.getElementById('iv-sub').textContent = 'NEGOCIO · CARGANDO…';
+        // v1.0.26 · cursor pagination · primera página
+        this._hasMore = true;
         const [invoices, clients, subs] = await Promise.all([
-          global.sbGet('invoices', 'select=*,clients(empresa,nombre,email)&order=created_at.desc&limit=200'),
+          global.sbGet('invoices', `select=*,clients(empresa,nombre,email)&order=created_at.desc&limit=${this._PAGE_SIZE}`),
           global.sbGet('clients', 'select=id,empresa,nombre&status=eq.activo&order=empresa'),
           global.sbGet('subscriptions', 'select=id,client_id,plan,plan_label,amount_cents,currency,status&status=eq.active')
         ]);
         this._invoices = invoices || [];
         this._clients = clients || [];
         this._subscriptions = subs || [];
+        // Si trae menos del PAGE_SIZE, no hay más por cargar
+        if(this._invoices.length < this._PAGE_SIZE) this._hasMore = false;
 
         this.populateClientFilter();
         this.renderKPIs();
         this.renderTable();
-        document.getElementById('iv-sub').textContent = `NEGOCIO · ${this._invoices.length} FACTURAS`;
+        document.getElementById('iv-sub').textContent = `NEGOCIO · ${this._invoices.length} FACTURAS${this._hasMore ? '+' : ''}`;
       } catch(err) {
         console.error('[InvoicesView] load:', err);
         document.getElementById('iv-sub').textContent = 'ERROR · ' + err.message;
         document.getElementById('iv-tbody').innerHTML = `<tr><td colspan="9" class="dim" style="text-align:center;padding:24px;color:var(--danger);">${escapeHtml(err.message)}</td></tr>`;
+      }
+    },
+
+    // v1.0.26 · Cargar más (cursor pagination)
+    // Usa created_at del último elemento como cursor
+    async loadMore(){
+      if(this._loadingMore || !this._hasMore || this._invoices.length === 0) return;
+      this._loadingMore = true;
+      const btn = document.getElementById('iv-load-more');
+      if(btn){ btn.disabled = true; btn.textContent = 'Cargando…'; }
+      try {
+        const oldest = this._invoices[this._invoices.length - 1];
+        const cursor = oldest?.created_at;
+        if(!cursor){ this._hasMore = false; return; }
+        const more = await global.sbGet(
+          'invoices',
+          `select=*,clients(empresa,nombre,email)&order=created_at.desc&limit=${this._PAGE_SIZE}&created_at=lt.${encodeURIComponent(cursor)}`
+        ) || [];
+        if(more.length < this._PAGE_SIZE) this._hasMore = false;
+        this._invoices = this._invoices.concat(more);
+        this.renderKPIs();
+        this.renderTable();
+        document.getElementById('iv-sub').textContent = `NEGOCIO · ${this._invoices.length} FACTURAS${this._hasMore ? '+' : ''}`;
+      } catch(err){
+        global.toast?.('Error cargando más: ' + err.message, 'err');
+      } finally {
+        this._loadingMore = false;
       }
     },
 
@@ -258,6 +295,21 @@
           </tr>
         `;
       }).join('');
+
+      // v1.0.26 · Botón "Cargar más" después de la tabla
+      const tfootEl = document.getElementById('iv-load-more-row');
+      if(tfootEl) tfootEl.remove();
+      if(this._hasMore){
+        const tfoot = document.createElement('tr');
+        tfoot.id = 'iv-load-more-row';
+        tfoot.innerHTML = `
+          <td colspan="9" style="text-align:center;padding:14px;border-top:1px dashed var(--border);">
+            <button id="iv-load-more" class="btn ghost" style="font-size:11px;font-family:'Geist Mono',monospace;letter-spacing:0.5px;" onclick="InvoicesView.loadMore()">
+              ⬇ Cargar 100 más antiguas
+            </button>
+          </td>`;
+        tbody.appendChild(tfoot);
+      }
     },
 
     // ── Crear invoice ──
@@ -478,6 +530,32 @@
           global.toast?.('Error: ' + err.message, 'err');
         }
       };
+    },
+
+    // v1.0.26 · Export CSV con filtros aplicados
+    exportCsv(){
+      const rows = this._filtered();
+      MadreExport.csv({
+        filename: `facturas-${new Date().toISOString().slice(0,10)}.csv`,
+        headers: ['Numero','Cliente','Email','Moneda','Monto','Pagado','Status','Dunning','Emitida','Vence','Pagada','Provider','Periodo Inicio','Periodo Fin','Descripcion'],
+        rows: rows.map(i => [
+          i.number || i.id?.slice(0,8) || '',
+          i.clients?.empresa || i.clients?.nombre || '',
+          i.clients?.email || '',
+          (i.currency||'usd').toUpperCase(),
+          ((i.amount_due_cents||0)/100).toFixed(2),
+          ((i.amount_paid_cents||0)/100).toFixed(2),
+          i.status || '',
+          i.dunning_state || 'none',
+          i.created_at || '',
+          i.due_date || '',
+          i.paid_at || '',
+          i.provider || 'manual',
+          i.period_start || '',
+          i.period_end || '',
+          i.description || '',
+        ]),
+      });
     },
 
     showDetails(invoiceId){

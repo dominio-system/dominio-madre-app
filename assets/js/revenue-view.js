@@ -1,16 +1,13 @@
 // ============================================
-// Dominio Madre · Vista "Ingresos & MRR" (v1.0.19)
+// Dominio Madre · Vista "Ingresos & MRR" (v1.0.26)
 // ============================================
-// Modularización de loadRevenueReal() que vivía inline en dashboard-madre.html.
+// v1.0.26 · refactor a v_revenue_daily (server-side aggregate)
+// Antes: limit=2000 invoices client-side aggregate (~240KB transferred)
+// Ahora: 1 row por día últimos 90 días (~5KB) · server-side aggregate
 //
 // Lee de Supabase real:
-//   - v_mrr_live (MRR consolidado · ARR · clientes activos)
-//   - invoices WHERE status=paid (para el bar chart día-por-día)
-//
-// Componentes:
-//   - 4 KPIs: MRR · ARR · RPC · Clientes pagantes
-//   - Bar chart con month navigator (MadreBarChart · 1:1 cliente)
-//   - Stripe pill (cambia a LIVE si hay invoices paid)
+//   - v_mrr_live      (MRR consolidado · ARR · clientes activos)
+//   - v_revenue_daily (1 row por día x 90 días con paid_cents_sum + invoices_count)
 //
 // Hook: go('revenue') → RevenueView.render()
 // ============================================
@@ -19,15 +16,15 @@
   'use strict';
 
   const RevenueView = {
-    _invoicesCache: null,
+    _dailyCache: null,
     _barInited: false,
 
     async render(){
       try {
-        const [mrrRows, paidInvoices] = await Promise.all([
+        const [mrrRows, daily] = await Promise.all([
           global.sbGet('v_mrr_live', 'select=*').catch(() => []),
-          // Pull todas las invoices PAID · agregamos por día client-side
-          global.sbGet('invoices', 'status=eq.paid&select=amount_paid_cents,paid_at&order=paid_at.desc&limit=2000').catch(() => []),
+          // v1.0.26 · server-side aggregate · solo 90 rows
+          global.sbGet('v_revenue_daily', 'select=*&order=day.asc').catch(() => []),
         ]);
 
         const mrr = mrrRows?.[0] || {};
@@ -42,7 +39,13 @@
         if($('rev-rpc'))     $('rev-rpc').textContent     = '$' + Math.round(rpc).toLocaleString('en');
         if($('rev-clients')) $('rev-clients').textContent = activeSubs;
 
-        this._invoicesCache = paidInvoices || [];
+        // Indexar daily rows por día de fecha para acceso O(1)
+        // daily row shape: { day: '2026-05-07', paid_cents_sum, paid_amount, invoices_count, day_of_week, month, year }
+        this._dailyCache = new Map();
+        (daily || []).forEach(d => {
+          const key = d.day; // 'YYYY-MM-DD'
+          this._dailyCache.set(key, d);
+        });
 
         // Bar chart con month navigator
         if(global.MadreBarChart && !this._barInited){
@@ -55,13 +58,13 @@
             getDataForMonth: (year, month) => this._aggregateByDay(year, month),
           });
         } else if(this._barInited){
-          // Forzar re-render del mes actual con la data fresca
           document.querySelector('#rev-month-nav [data-bn-today]')?.click();
         }
 
-        // Stripe pill: si hay al menos 1 invoice paid → LIVE
+        // Stripe pill: si hay invoices paid (paid_amount > 0 en algún día)
+        const hasRevenue = Array.from(this._dailyCache.values()).some(d => Number(d.paid_amount) > 0);
         const stripePill = $('stripe-pill');
-        if(stripePill && this._invoicesCache.length > 0){
+        if(stripePill && hasRevenue){
           stripePill.className = 'pill pill-ok';
           stripePill.innerHTML = '<span class="pill-dot"></span>STRIPE LIVE';
         }
@@ -70,24 +73,20 @@
       }
     },
 
-    // Agrega invoices.paid_at por día del mes solicitado · marca future si aplica
+    // v1.0.26 · ya no hace aggregate · solo lookup en cache O(1) por día
     _aggregateByDay(year, month){
       const today = new Date();
       const daysInMonth = new Date(year, month + 1, 0).getDate();
-      const buckets = {};
-      for(let d = 1; d <= daysInMonth; d++) buckets[d] = 0;
-      (this._invoicesCache || []).forEach(inv => {
-        if(!inv.paid_at) return;
-        const d = new Date(inv.paid_at);
-        if(d.getFullYear() !== year || d.getMonth() !== month) return;
-        buckets[d.getDate()] += (inv.amount_paid_cents || 0) / 100;
-      });
       return Array.from({ length: daysInMonth }, (_, i) => {
         const day = i + 1;
+        // Construir key 'YYYY-MM-DD' de this date
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const row = this._dailyCache?.get(dateStr);
+        const value = row ? Number(row.paid_amount) || 0 : 0;
         const isFuture = (year > today.getFullYear()) ||
                          (year === today.getFullYear() && month > today.getMonth()) ||
                          (year === today.getFullYear() && month === today.getMonth() && day > today.getDate());
-        return { day, value: buckets[day], future: isFuture };
+        return { day, value, future: isFuture };
       });
     },
   };

@@ -13,7 +13,11 @@
 
   const AuditView = {
     _entries: [],
-    _filters: { result: 'all', action: '' },
+    _filters: { result: 'all', action: '', dateRange: '7d' },
+    // v1.0.26 · cursor pagination
+    _PAGE_SIZE: 100,
+    _hasMore: true,
+    _loadingMore: false,
 
     async render(){
       const view = document.querySelector('.view[data-view="audit"]');
@@ -30,10 +34,48 @@
       }
     },
 
+    _dateFilterClause(){
+      // PostgREST URL fragment para filtro de fecha
+      const r = this._filters.dateRange;
+      if(r === 'all') return '';
+      const days = { '7d': 7, '30d': 30, '90d': 90 }[r] || 7;
+      const since = new Date(Date.now() - days * 864e5).toISOString();
+      return `&created_at=gte.${encodeURIComponent(since)}`;
+    },
+
     async loadData(){
-      // Últimos 100 (paginar más adelante si crece)
-      const data = await global.sbGet('audit_log', 'order=created_at.desc&limit=100&select=*').catch(() => []);
+      // v1.0.26 · primera página + filtro de fecha
+      this._hasMore = true;
+      const data = await global.sbGet(
+        'audit_log',
+        `order=created_at.desc&limit=${this._PAGE_SIZE}&select=*${this._dateFilterClause()}`
+      ).catch(() => []);
       this._entries = Array.isArray(data) ? data : [];
+      if(this._entries.length < this._PAGE_SIZE) this._hasMore = false;
+    },
+
+    async loadMore(){
+      if(this._loadingMore || !this._hasMore || this._entries.length === 0) return;
+      this._loadingMore = true;
+      const btn = document.getElementById('audit-load-more');
+      if(btn){ btn.disabled = true; btn.textContent = 'Cargando…'; }
+      try {
+        const oldest = this._entries[this._entries.length - 1];
+        const cursor = oldest?.created_at;
+        if(!cursor){ this._hasMore = false; return; }
+        const more = await global.sbGet(
+          'audit_log',
+          `order=created_at.desc&limit=${this._PAGE_SIZE}&select=*&created_at=lt.${encodeURIComponent(cursor)}${this._dateFilterClause()}`
+        ).catch(() => []);
+        if(!Array.isArray(more) || more.length < this._PAGE_SIZE) this._hasMore = false;
+        if(Array.isArray(more) && more.length){
+          this._entries = this._entries.concat(more);
+        }
+        this.renderHeader();
+        this.renderTable();
+      } finally {
+        this._loadingMore = false;
+      }
     },
 
     renderHeader(){
@@ -73,8 +115,14 @@
         const active = this._filters.result === val ? ' active' : '';
         return `<button class="filter-pill-btn${active}" data-aresult="${val}">${icon ? icon + ' ' : ''}${label} <span class="count">(${count})</span></button>`;
       }).join('') + `
-        <input type="text" id="audit-search" placeholder="Buscar acción..." value="${escapeHtml(this._filters.action)}"
-               style="margin-left:8px;background:var(--card2);border:1px solid var(--border);padding:5px 11px;font-size:11px;color:var(--text);border-radius:999px;font-family:'Geist Mono',monospace;outline:none;flex:1;min-width:120px;max-width:220px;">
+        <select id="audit-daterange" style="margin-left:6px;background:var(--card2);border:1px solid var(--border);padding:5px 9px;font-size:11px;color:var(--text);border-radius:999px;font-family:inherit;outline:none;">
+          <option value="7d"  ${this._filters.dateRange==='7d'?'selected':''}>7 días</option>
+          <option value="30d" ${this._filters.dateRange==='30d'?'selected':''}>30 días</option>
+          <option value="90d" ${this._filters.dateRange==='90d'?'selected':''}>90 días</option>
+          <option value="all" ${this._filters.dateRange==='all'?'selected':''}>Todo</option>
+        </select>
+        <input type="text" id="audit-search" placeholder="Buscar acción / actor..." value="${escapeHtml(this._filters.action)}"
+               style="margin-left:6px;background:var(--card2);border:1px solid var(--border);padding:5px 11px;font-size:11px;color:var(--text);border-radius:999px;font-family:'Geist Mono',monospace;outline:none;flex:1;min-width:120px;max-width:220px;">
       `;
       chips.querySelectorAll('button[data-aresult]').forEach(b => {
         b.addEventListener('click', () => {
@@ -94,6 +142,17 @@
           }, 200);
         });
       }
+      // v1.0.26 · date range selector
+      const dateSel = chips.querySelector('#audit-daterange');
+      if(dateSel){
+        dateSel.addEventListener('change', async (e) => {
+          this._filters.dateRange = e.target.value;
+          await this.loadData();
+          this.renderHeader();
+          this.renderFilters();
+          this.renderTable();
+        });
+      }
     },
 
     renderTable(){
@@ -105,7 +164,12 @@
         filtered = filtered.filter(e => (e.result || '').toLowerCase() === this._filters.result);
       }
       if(this._filters.action){
-        filtered = filtered.filter(e => (e.action || '').toLowerCase().includes(this._filters.action));
+        const q = this._filters.action;
+        filtered = filtered.filter(e =>
+          (e.action || '').toLowerCase().includes(q) ||
+          (e.actor_email || '').toLowerCase().includes(q) ||
+          (e.entity_type || '').toLowerCase().includes(q)
+        );
       }
 
       if(filtered.length === 0){
@@ -143,6 +207,21 @@
           </tr>
         `;
       }).join('');
+
+      // v1.0.26 · footer Cargar más
+      const existing = document.getElementById('audit-load-more-row');
+      if(existing) existing.remove();
+      if(this._hasMore){
+        const tfoot = document.createElement('tr');
+        tfoot.id = 'audit-load-more-row';
+        tfoot.innerHTML = `
+          <td colspan="5" style="text-align:center;padding:14px;border-top:1px dashed var(--border);">
+            <button id="audit-load-more" class="btn ghost" style="font-size:11px;font-family:'Geist Mono',monospace;letter-spacing:0.5px;" onclick="AuditView.loadMore()">
+              ⬇ Cargar 100 más antiguas
+            </button>
+          </td>`;
+        tbody.appendChild(tfoot);
+      }
     },
 
     renderError(err){

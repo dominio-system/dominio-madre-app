@@ -9,6 +9,8 @@
   const FunnelView = {
     _data: null,
     _sources: [],
+    // v1.0.33 · selector de rango (default 'all' para coincidir con cliente dashboard)
+    _range: 'all', // 'all' | '90d' | '30d' | '7d'
 
     async render(){
       const view = document.querySelector('.view[data-view="funnel"]');
@@ -16,8 +18,16 @@
 
       view.innerHTML = `
         <div class="page-head">
-          <div><div class="page-title">Embudo</div><div class="page-sub" id="fv-sub">OPERACIÓN · ÚLTIMOS 90 DÍAS · AGREGADO TODOS LOS CLIENTES</div></div>
-          <div class="page-actions"><button class="btn ghost" id="fv-refresh">↻ Refrescar</button></div>
+          <div><div class="page-title">Embudo</div><div class="page-sub" id="fv-sub">OPERACIÓN · CARGANDO…</div></div>
+          <div class="page-actions">
+            <select id="fv-range" style="background:var(--card2);border:1px solid var(--border);color:var(--text);padding:5px 11px;border-radius:999px;font-size:11px;font-family:inherit;outline:none;">
+              <option value="all" selected>Todo el tiempo</option>
+              <option value="90d">Últimos 90 días</option>
+              <option value="30d">Últimos 30 días</option>
+              <option value="7d">Últimos 7 días</option>
+            </select>
+            <button class="btn ghost" id="fv-refresh">↻ Refrescar</button>
+          </div>
         </div>
 
         <div class="kpi-strip">
@@ -47,24 +57,72 @@
       `;
 
       document.getElementById('fv-refresh').onclick = () => this.load();
+      // v1.0.33 · range selector
+      document.getElementById('fv-range').addEventListener('change', (e) => {
+        this._range = e.target.value;
+        this.load();
+      });
       await this.load();
+    },
+
+    // v1.0.33 · genera URL filter dinámico según rango (vacío = sin filtro)
+    _dateFilter(){
+      if(this._range === 'all') return '';
+      const days = { '90d': 90, '30d': 30, '7d': 7 }[this._range] || 90;
+      const since = new Date(Date.now() - days * 864e5).toISOString();
+      return `&created_at=gte.${encodeURIComponent(since)}`;
     },
 
     async load(){
       try {
         document.getElementById('fv-sub').textContent = 'OPERACIÓN · CARGANDO…';
-        const [funnel, sources] = await Promise.all([
-          global.sbGet('v_funnel_master', 'select=*').catch(()=>[]),
+        const dateClause = this._dateFilter();
+        // Queries directas a tablas (bypass de v_funnel_master para soportar daterange dinámico)
+        const [leads, appts, sources] = await Promise.all([
+          global.sbGet('leads', `select=status${dateClause}&limit=10000`).catch(()=>[]),
+          global.sbGet('appointments', `select=estado,pagado${dateClause}&limit=10000`).catch(()=>[]),
+          // v_lead_sources sigue siendo 90d (es agregado UTM · útil en ese rango)
           global.sbGet('v_lead_sources', 'select=*&order=leads_count.desc&limit=25').catch(()=>[])
         ]);
-        this._data = funnel?.[0] || null;
+        // Calcular stats client-side (rápido a 50 clientes · ~10k rows max)
+        this._data = this._computeFunnel(leads || [], appts || []);
         this._sources = sources || [];
         this.renderStages();
         this.renderSources();
-        document.getElementById('fv-sub').textContent = 'OPERACIÓN · ÚLTIMOS 90 DÍAS';
+        const labels = { all: 'TODO EL TIEMPO', '90d': 'ÚLTIMOS 90 DÍAS', '30d': 'ÚLTIMOS 30 DÍAS', '7d': 'ÚLTIMOS 7 DÍAS' };
+        document.getElementById('fv-sub').textContent = `OPERACIÓN · ${labels[this._range]} · ${(leads||[]).length} LEADS · ${(appts||[]).length} CITAS`;
       } catch(err){
         document.getElementById('fv-sub').textContent = 'ERROR · ' + err.message;
       }
+    },
+
+    // v1.0.33 · Calcula funnel desde rows raw (mismas formulas que v_funnel_master)
+    _computeFunnel(leads, appts){
+      const leadsByStatus = (s) => leads.filter(l => l.status === s).length;
+      const apptsByEstado = (e) => appts.filter(a => a.estado === e).length;
+      const apptsPaid = appts.filter(a => a.pagado === true).length;
+
+      const total_leads = leads.filter(l => ['nuevo','contactado','calificado','cita_agendada','cliente','perdido'].includes(l.status)).length;
+      const contacted = leads.filter(l => ['contactado','calificado','cita_agendada','cliente'].includes(l.status)).length;
+      const qualified = leads.filter(l => ['calificado','cita_agendada','cliente'].includes(l.status)).length;
+      const appointment_scheduled = leads.filter(l => ['cita_agendada','cliente'].includes(l.status)).length;
+      const closed_won = leadsByStatus('cliente');
+      const closed_lost = leadsByStatus('perdido');
+
+      const pct = (a, b) => b > 0 ? Math.round(a / b * 1000) / 10 : 0;
+      return {
+        total_leads, contacted, qualified, appointment_scheduled, closed_won, closed_lost,
+        pending: apptsByEstado('pending'),
+        confirmed: apptsByEstado('confirmed'),
+        completed: apptsByEstado('completed'),
+        no_show: apptsByEstado('no_show'),
+        canceled: apptsByEstado('cancelled'),
+        paid: apptsPaid,
+        pct_contacted: pct(contacted, total_leads),
+        pct_qualified: pct(qualified, contacted),
+        pct_appointment: pct(appointment_scheduled, qualified),
+        pct_closed: pct(closed_won, appointment_scheduled),
+      };
     },
 
     renderStages(){

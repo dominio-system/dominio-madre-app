@@ -5,7 +5,7 @@
 //   1. Cuenta            — usuario logueado · cerrar sesión
 //   2. Aplicación        — versión + buscar/descargar updates (GitHub Releases)
 //   3. Sistema           — limpiar caché · DevTools · exportar audit_log CSV
-//   4. Conexiones        — Supabase + n8n + Sentry + Resend (read-only)
+//   4. Acerca de         — info de versión / Electron / Node / userData path
 //   5. Acerca de         — Electron / Chromium / Node / V8 / arch / userData
 //
 // Limitación intencional: NO hay auto-install (electron-updater no integrado
@@ -40,7 +40,6 @@
             <div class="panel" id="set-cuenta"></div>
             <div class="panel" id="set-app"></div>
             <div class="panel" id="set-sistema"></div>
-            <div class="panel" id="set-conexiones"></div>
             <div class="panel" id="set-about" style="grid-column:1/-1;"></div>
           </div>
         `;
@@ -61,7 +60,6 @@
       this.renderCuenta();
       this.renderApp();
       this.renderSistema();
-      this.renderConexiones();
       this.renderAbout();
     },
 
@@ -321,43 +319,9 @@
       }
     },
 
-    // ─── 4. Conexiones (read-only) ─────────────────────────────
-    renderConexiones(){
-      const el = document.getElementById('set-conexiones');
-      if(!el) return;
-      // Detectar disponibilidad real (heurística simple)
-      const supabaseUrl = global.SUPABASE_URL || '—';
-      const supabaseHost = (() => { try { return new URL(supabaseUrl).host; } catch { return supabaseUrl; }})();
-      const n8nHost = 'n8n-production-d3a5.up.railway.app'; // hardcoded en allowlist main.js
-      // Sentry: madre app NO lo tiene integrado (verificado en main.js)
-      const services = [
-        { name: 'Supabase',  status: 'ok',     dot: '🟢', detail: supabaseHost,        note: 'anon key + RLS' },
-        { name: 'n8n',       status: 'ok',     dot: '🟢', detail: n8nHost,              note: 'Railway · workflows DS2-*' },
-        { name: 'Sentry',    status: 'off',    dot: '⚪', detail: 'no integrado',       note: 'cliente sí tiene · madre pendiente' },
-        { name: 'Resend',    status: 'via',    dot: '🟡', detail: 'vía n8n',            note: 'no se llama directo desde madre' },
-      ];
-      el.innerHTML = `
-        <div class="panel-head">
-          <div class="panel-title">Conexiones</div>
-        </div>
-        <div style="padding:8px;">
-          <table class="tbl" style="font-size:12px;">
-            <tbody>
-              ${services.map(s => `
-                <tr>
-                  <td style="width:24px;">${s.dot}</td>
-                  <td><strong>${escapeHtml(s.name)}</strong></td>
-                  <td style="font-family:'Geist Mono',monospace;font-size:10px;">${escapeHtml(s.detail)}</td>
-                  <td class="dim" style="font-size:10px;">${escapeHtml(s.note)}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
-      `;
-    },
-
-    // ─── 5. Acerca de ─────────────────────────────────────────
+    // ─── 4. Acerca de ─────────────────────────────────────────
+    // (panel Conexiones eliminado v1.0.24 · no aporta valor operativo · si necesitas
+    //  ver salud de servicios usa la sección "Estado del Sistema" del sidebar)
     renderAbout(){
       const el = document.getElementById('set-about');
       if(!el) return;

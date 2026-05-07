@@ -191,8 +191,8 @@
           <div style="display:flex;gap:6px;margin-top:8px;align-items:center;">
             <label style="font-size:10px;color:var(--text3);display:flex;align-items:center;gap:4px;"><input type="checkbox" id="tv-internal"> nota interna</label>
             <div style="margin-left:auto;display:flex;gap:6px;">
-              ${t.status !== 'resolved' && t.status !== 'closed' ? `<button class="btn ghost" onclick="TicketsView.resolve('${t.id}')">✓ Resolver</button>` : `<button class="btn ghost" onclick="TicketsView.reopen('${t.id}')">Reabrir</button>`}
-              <button class="btn primary" onclick="TicketsView.sendReply('${t.id}')">Enviar</button>
+              ${t.status !== 'resolved' && t.status !== 'closed' ? `<button class="btn primary" style="background:var(--success);border-color:var(--success);color:#000;" onclick="TicketsView.resolveAndEmail('${t.id}')" title="Marca como resuelto y envía email al cliente desde soporte@dominiosystem.com">✓ Resolver + email</button>` : `<button class="btn ghost" onclick="TicketsView.reopen('${t.id}')">Reabrir</button>`}
+              <button class="btn ghost" onclick="TicketsView.sendReply('${t.id}')" title="Solo guarda nota interna · sin email">Guardar nota</button>
             </div>
           </div>
         </div>
@@ -225,14 +225,108 @@
       } catch(err){ global.toast?.('Error: ' + err.message, 'err'); }
     },
 
+    // Legacy · solo cambia status sin email (kept for compat con accesos antiguos)
     async resolve(id){
       try {
         await global.sbPatch('tickets', id, { status: 'resolved', resolved_at: new Date().toISOString() });
-        global.toast?.('Ticket resuelto', 'success');
+        global.toast?.('Ticket resuelto (sin email)', 'success');
         await this.load();
         this._selected = this._tickets.find(x => x.id === id);
         await this.renderDetail();
       } catch(err){ global.toast?.('Error: ' + err.message, 'err'); }
+    },
+
+    // v1.0.22 · Resolver + enviar email al cliente desde soporte@dominiosystem.com
+    // Reusa el textarea (#tv-reply) como mensaje de resolución.
+    // Llama a Edge Function ticket-resolve que: insert ticket_messages,
+    // update tickets.status='resolved', send Resend email FROM soporte@.
+    async resolveAndEmail(ticketId){
+      const t = this._tickets.find(x => x.id === ticketId);
+      if(!t){ global.toast?.('Ticket no encontrado', 'err'); return; }
+      if(!t.requester_email){
+        global.toast?.('Ticket sin email · usa "Guardar nota" o reabre desde otro canal', 'err');
+        return;
+      }
+      const message = (document.getElementById('tv-reply')?.value || '').trim();
+      if(message.length < 3){
+        global.toast?.('Escribe la solución en el textarea (mínimo 3 caracteres) antes de resolver', 'warn');
+        document.getElementById('tv-reply')?.focus();
+        return;
+      }
+
+      // Confirmación con preview del email
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1100;display:flex;align-items:center;justify-content:center;padding:20px;';
+      wrap.innerHTML = `
+        <div style="background:var(--card);border:1px solid var(--border2);border-radius:10px;width:100%;max-width:560px;">
+          <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;">
+            <div style="font-size:14px;font-weight:600;">Resolver y enviar email</div>
+            <button id="re-close" style="margin-left:auto;width:26px;height:26px;background:transparent;border:0;color:var(--text3);cursor:pointer;">✕</button>
+          </div>
+          <div style="padding:14px 18px;">
+            <div style="font-size:11px;color:var(--text3);font-family:'Geist Mono',monospace;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">DESTINATARIO</div>
+            <div style="padding:10px;background:var(--card2);border-radius:5px;font-size:12px;margin-bottom:14px;">
+              <div><strong>${escapeHtml(t.requester_name || t.requester_email)}</strong></div>
+              <div class="dim" style="font-family:monospace;font-size:11px;">${escapeHtml(t.requester_email)}</div>
+            </div>
+            <div style="font-size:11px;color:var(--text3);font-family:'Geist Mono',monospace;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">REMITENTE</div>
+            <div style="font-size:11px;color:var(--text2);margin-bottom:14px;font-family:monospace;">soporte@dominiosystem.com</div>
+            <div style="font-size:11px;color:var(--text3);font-family:'Geist Mono',monospace;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">ASUNTO</div>
+            <div style="font-size:12px;color:var(--text);margin-bottom:14px;">Re: ${escapeHtml(t.subject)}</div>
+            <div style="font-size:11px;color:var(--text3);font-family:'Geist Mono',monospace;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">MENSAJE DE RESOLUCIÓN</div>
+            <div style="padding:10px;background:var(--card2);border-radius:5px;font-size:12px;line-height:1.6;white-space:pre-wrap;max-height:160px;overflow-y:auto;">${escapeHtml(message)}</div>
+            <label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:11px;cursor:pointer;color:var(--text2);">
+              <input type="checkbox" id="re-close-too"> Marcar también como cerrado (status=closed · cliente no puede reabrir)
+            </label>
+          </div>
+          <div style="padding:12px 18px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;">
+            <button class="btn ghost" id="re-cancel">Cancelar</button>
+            <button class="btn primary" id="re-send" style="background:var(--success);border-color:var(--success);color:#000;">✓ Resolver y enviar</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(wrap);
+      const close = () => wrap.remove();
+      wrap.querySelector('#re-close').onclick = close;
+      wrap.querySelector('#re-cancel').onclick = close;
+      wrap.querySelector('#re-send').onclick = async () => {
+        const btn = wrap.querySelector('#re-send');
+        btn.disabled = true;
+        btn.textContent = 'Enviando…';
+        const alsoClose = wrap.querySelector('#re-close-too').checked;
+        try {
+          const token = global.SESSION?.accessToken || global.SUPABASE_ANON;
+          const r = await fetch(`${global.SUPABASE_URL}/functions/v1/ticket-resolve`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + token,
+              'apikey': global.SUPABASE_ANON,
+            },
+            body: JSON.stringify({
+              ticket_id: ticketId,
+              resolution_message: message,
+              also_close: alsoClose,
+            }),
+          });
+          const data = await r.json().catch(() => ({}));
+          if(!r.ok || !data.success){
+            throw new Error(data.error || `HTTP ${r.status}`);
+          }
+          close();
+          // Limpiar textarea
+          const ta = document.getElementById('tv-reply');
+          if(ta) ta.value = '';
+          global.toast?.(`✓ Email enviado a ${t.requester_email}`, 'success');
+          await this.load();
+          this._selected = this._tickets.find(x => x.id === ticketId) || null;
+          await this.renderDetail();
+        } catch(err){
+          btn.disabled = false;
+          btn.textContent = '✓ Resolver y enviar';
+          global.toast?.('Error: ' + (err.message || 'No se pudo enviar'), 'err');
+        }
+      };
     },
     async reopen(id){
       try {

@@ -123,10 +123,7 @@ body.collapsed .user-info{opacity:0;width:0;}
 .crumb .current{color:var(--text);font-weight:600;}
 .crumb .date{color:var(--text3);font-size:10px;margin-left:6px;font-family:'Geist Mono',monospace;}
 .top-right{margin-left:auto;display:flex;align-items:center;gap:8px;}
-.period-tabs{display:flex;gap:2px;background:var(--card);border:1px solid var(--border);border-radius:5px;padding:2px;}
-.period-tab{padding:3px 9px;font-size:10px;color:var(--text3);cursor:pointer;border-radius:3px;font-family:'Geist Mono',monospace;transition:all 120ms;}
-.period-tab:hover{color:var(--text2);}
-.period-tab.active{background:var(--card3);color:var(--text);}
+/* period-tabs removido v1.0.22 (eran decorativos sin handler) */
 .pill{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-family:'Geist Mono',monospace;padding:4px 10px;border-radius:20px;letter-spacing:0.5px;}
 .pill-ok{background:var(--success-s);color:var(--success);border:1px solid rgba(111,207,151,0.2);}
 .pill-alert{background:var(--danger-s);color:var(--danger);border:1px solid rgba(235,87,87,0.2);}
@@ -558,9 +555,7 @@ body.notif-open .notif-overlay{pointer-events:auto;}
       </button>
     </div>
     <div class="top-right">
-      <div class="period-tabs"><div class="period-tab">7D</div><div class="period-tab active">30D</div><div class="period-tab">90D</div><div class="period-tab">YTD</div></div>
-      <div class="pill pill-demo" id="mode-pill">DEMO</div>
-      <div class="pill pill-ok"><span class="pill-dot"></span>SISTEMA ACTIVO</div>
+      <div class="pill pill-ok" id="conn-pill"><span class="pill-dot"></span>SISTEMA ACTIVO</div>
     </div>
   </div>
 
@@ -1261,8 +1256,9 @@ async function loadData(){
 
     IS_LIVE=true;
     document.getElementById('live-pill').style.display='inline-flex';
-    document.getElementById('mode-pill').textContent='LIVE';
-    document.getElementById('mode-pill').className='pill pill-ok';
+    // v1.0.22 · pill SISTEMA ACTIVO (id="conn-pill") · refleja conexión Supabase
+    const connPill = document.getElementById('conn-pill');
+    if(connPill){ connPill.innerHTML = '<span class="pill-dot"></span>SISTEMA ACTIVO'; connPill.className = 'pill pill-ok'; }
 
     toast(`${CLIENTS_LIVE.length} cliente${CLIENTS_LIVE.length===1?'':'s'} cargado${CLIENTS_LIVE.length===1?'':'s'} de Supabase`,'success');
 
@@ -1272,8 +1268,8 @@ async function loadData(){
     document.getElementById('supa-chip').innerHTML='<span class="chip-dot"></span>ERROR';
     document.getElementById('cl-realtime').textContent='ERROR';
     document.getElementById('cl-realtime').style.color='var(--danger)';
-    document.getElementById('mode-pill').textContent='OFFLINE';
-    document.getElementById('mode-pill').className='pill pill-alert';
+    const connPill = document.getElementById('conn-pill');
+    if(connPill){ connPill.innerHTML = '<span class="pill-dot"></span>SIN CONEXIÓN'; connPill.className = 'pill pill-alert'; }
     toast('Error conectando a Supabase: '+err.message,'err');
   }
 }

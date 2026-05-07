@@ -536,15 +536,32 @@ ipcMain.handle('check-updates', async () => {
     if (!latest) return { status: 'error', current, message: 'Release sin tag_name' };
 
     const cmp = compareSemver(current, latest);
-    const dmgAsset = (data.assets || []).find(a => /\.dmg$/i.test(a.name));
+    // v1.0.24 · Detección de arquitectura para servir el DMG correcto
+    // process.arch en Electron Mac: 'arm64' (Apple Silicon) o 'x64' (Intel)
+    const arch = process.arch || 'arm64';
+    const allDmgs = (data.assets || []).filter(a => /\.dmg$/i.test(a.name));
+    let dmgAsset = null;
+    if (arch === 'arm64') {
+      // Prefer arm64. Si no hay, NO caer en x64 (sería instalar Rosetta-only)
+      dmgAsset = allDmgs.find(a => /-arm64\.dmg$/i.test(a.name)) || null;
+    } else {
+      // Intel: el x64 NO tiene sufijo en electron-builder default
+      dmgAsset = allDmgs.find(a => !/-arm64\.dmg$/i.test(a.name)) || null;
+    }
+    // Fallback: si no encontramos el match exacto, tomar cualquier DMG disponible
+    if (!dmgAsset && allDmgs.length > 0) dmgAsset = allDmgs[0];
+
     return {
       status: cmp < 0 ? 'available' : 'up-to-date',
       current,
       latest,
+      arch,
       releaseNotes: data.body || '',
       releaseUrl: data.html_url || '',
-      dmgUrl: dmgAsset ? dmgAsset.browser_download_url : (data.html_url || ''),
+      dmgUrl: dmgAsset ? dmgAsset.browser_download_url : null,
       dmgName: dmgAsset ? dmgAsset.name : null,
+      dmgSize: dmgAsset ? dmgAsset.size : null,
+      assetsCount: allDmgs.length,
       publishedAt: data.published_at || null,
     };
   } catch (e) {

@@ -164,14 +164,20 @@
         updateBlock = `<div style="color:var(--success);font-size:12px;">✓ Estás en la última versión (v${escapeHtml(state.latest)})</div>`;
       } else if(state.status === 'available'){
         const notes = (state.releaseNotes || '').slice(0, 600);
+        // v1.0.24 · Solo mostrar botón Descargar si hay DMG disponible para la arquitectura
+        const hasDmg = !!state.dmgUrl;
+        const sizeMB = state.dmgSize ? Math.round(state.dmgSize / 1048576) : null;
+        const archLabel = state.arch === 'arm64' ? 'Apple Silicon' : 'Intel';
+        const downloadButton = hasDmg
+          ? `<button class="btn primary" id="set-download-dmg" style="font-size:11px;">⬇ Descargar DMG${sizeMB ? ` · ${sizeMB} MB` : ''} (${archLabel})</button>`
+          : `<div style="font-size:11px;color:var(--warn);background:rgba(255,176,32,0.10);border:1px solid rgba(255,176,32,0.30);border-radius:5px;padding:8px 10px;">⚠ DMG aún no disponible para tu arquitectura (${archLabel}). El upload del binario al release todavía no termina · vuelve en unos minutos.</div>`;
         updateBlock = `
           <div style="background:rgba(111,207,151,0.08);border:1px solid rgba(111,207,151,0.25);border-radius:6px;padding:10px;font-size:12px;">
             <div style="font-weight:600;color:var(--success);">Nueva versión disponible: v${escapeHtml(state.latest)}</div>
             ${state.publishedAt ? `<div class="dim" style="font-size:10px;margin-top:2px;">Publicada ${new Date(state.publishedAt).toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'})}</div>` : ''}
             ${notes ? `<pre style="margin:8px 0 0;white-space:pre-wrap;font-family:'Geist Mono',monospace;font-size:10px;line-height:1.5;color:var(--text2);max-height:140px;overflow:auto;">${escapeHtml(notes)}${state.releaseNotes && state.releaseNotes.length > 600 ? '…' : ''}</pre>` : ''}
-            <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
-              <button class="btn primary" id="set-download-dmg" style="font-size:11px;">⬇ Descargar DMG</button>
-              <button class="btn ghost" id="set-view-release" style="font-size:11px;">Ver release en GitHub</button>
+            <div style="margin-top:10px;">
+              ${downloadButton}
             </div>
           </div>
         `;
@@ -205,11 +211,11 @@
       if(checkBtn) checkBtn.onclick = () => this.checkForUpdates();
       const dlBtn = document.getElementById('set-download-dmg');
       if(dlBtn && state?.dmgUrl) dlBtn.onclick = () => {
+        // dmgUrl es el browser_download_url directo de GitHub Releases
+        // GitHub responde con redirect 302 al CDN, el navegador descarga el archivo automáticamente.
         global.electronAPI?.openExternal(state.dmgUrl);
-        global.toast?.('Descarga abierta en navegador', 'success');
+        global.toast?.(`Descarga iniciada · ${state.dmgName || 'DMG'}`, 'success');
       };
-      const relBtn = document.getElementById('set-view-release');
-      if(relBtn && state?.releaseUrl) relBtn.onclick = () => global.electronAPI?.openExternal(state.releaseUrl);
     },
 
     async checkForUpdates(){

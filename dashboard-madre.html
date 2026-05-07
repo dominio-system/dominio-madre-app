@@ -791,6 +791,34 @@ body.notif-open .notif-overlay{pointer-events:auto;}
         <div class="kpi-card"><div class="kpi-label">TICKET PROM.</div><div class="kpi-value" id="cl-avg">$0</div><div class="kpi-trend">por cliente</div></div>
         <div class="kpi-card"><div class="kpi-label">ESTADO REALTIME</div><div class="kpi-value" style="font-size:14px;" id="cl-realtime">OFFLINE</div><div class="kpi-trend">supabase</div></div>
       </div>
+      <div class="filter-pill-card" id="cl-filter-card" style="margin-top:12px;">
+        <span class="filter-label">FILTROS</span>
+        <button data-cf="all" class="filter-pill-btn active" onclick="window.MadreClientsList.setStatus('all')">Todos <span class="count">(<span data-cl-count="all">0</span>)</span></button>
+        <button data-cf="activo" class="filter-pill-btn" onclick="window.MadreClientsList.setStatus('activo')">● Activos <span class="count">(<span data-cl-count="activo">0</span>)</span></button>
+        <button data-cf="trial" class="filter-pill-btn" onclick="window.MadreClientsList.setStatus('trial')">⏱ Trial <span class="count">(<span data-cl-count="trial">0</span>)</span></button>
+        <button data-cf="churned" class="filter-pill-btn" onclick="window.MadreClientsList.setStatus('churned')">✕ Churned <span class="count">(<span data-cl-count="churned">0</span>)</span></button>
+        <select id="cl-pais-filter" style="background:var(--card2);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:999px;font-size:11px;font-family:inherit;outline:none;min-width:120px;margin-left:6px;">
+          <option value="">Todos los países</option>
+        </select>
+        <select id="cl-plan-filter" style="background:var(--card2);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:999px;font-size:11px;font-family:inherit;outline:none;min-width:120px;">
+          <option value="">Todos los planes</option>
+        </select>
+        <select id="cl-mrr-filter" style="background:var(--card2);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:999px;font-size:11px;font-family:inherit;outline:none;min-width:140px;">
+          <option value="">MRR · Cualquiera</option>
+          <option value="0">Sin ingresos</option>
+          <option value="1-99">$1 – $99</option>
+          <option value="100-499">$100 – $499</option>
+          <option value="500-1999">$500 – $1,999</option>
+          <option value="2000+">$2,000+</option>
+        </select>
+        <select id="cl-period-filter" style="background:var(--card2);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:999px;font-size:11px;font-family:inherit;outline:none;min-width:120px;" title="Periodo de heat-bars">
+          <option value="7">Heat · 7d</option>
+          <option value="14">Heat · 14d</option>
+          <option value="30">Heat · 30d</option>
+        </select>
+        <input id="cl-search" type="search" placeholder="Buscar nombre, empresa, email…" autocomplete="off" style="background:var(--card2);border:1px solid var(--border);color:var(--text);padding:5px 12px;border-radius:999px;font-size:11px;font-family:inherit;outline:none;min-width:240px;flex:1;" />
+        <span style="font-size:10px;color:var(--text3);font-family:'Geist Mono',monospace;" id="cl-filter-count">— de —</span>
+      </div>
       <div class="panel" style="margin-top:12px;">
         <div class="panel-head"><div class="panel-title">Clientes activos</div><div class="panel-sub" id="cl-count">0 clientes</div></div>
         <div id="cl-list"></div>

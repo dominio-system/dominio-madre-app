@@ -282,25 +282,156 @@
     _clients: [],
     _page: 0,
     _pageSize: 25,
+    _filter: { status: 'all', pais: '', plan: '', mrr: '', q: '', period: 7 },
+    _wired: false,
 
     async load(){
       try {
         this._clients = await Cache.get('v_clients_full', () =>
           global.sbGet('v_clients_full', 'select=*&order=created_at.desc&limit=500').catch(()=>[])
         );
+        this._populateFilterOptions();
+        this._wireControls();
         this.render();
       } catch(err){
         console.warn('[polish] ClientsList.load:', err);
       }
     },
 
+    _populateFilterOptions(){
+      const paisSel = document.getElementById('cl-pais-filter');
+      const planSel = document.getElementById('cl-plan-filter');
+      if(paisSel){
+        const paises = [...new Set(this._clients.map(c => (c.pais||'').trim()).filter(Boolean))].sort();
+        const cur = paisSel.value;
+        paisSel.innerHTML = '<option value="">Todos los países</option>' +
+          paises.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('');
+        if(paises.includes(cur)) paisSel.value = cur;
+      }
+      if(planSel){
+        const planes = [...new Set(this._clients.map(c => (c.plan||'').trim()).filter(Boolean))].sort();
+        const cur = planSel.value;
+        planSel.innerHTML = '<option value="">Todos los planes</option>' +
+          planes.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p.toUpperCase())}</option>`).join('');
+        if(planes.includes(cur)) planSel.value = cur;
+      }
+    },
+
+    _wireControls(){
+      if(this._wired) return;
+      this._wired = true;
+      const sInput = document.getElementById('cl-search');
+      if(sInput){
+        let _t = null;
+        sInput.addEventListener('input', (e) => {
+          clearTimeout(_t);
+          const v = e.target.value;
+          _t = setTimeout(() => { this._filter.q = v.trim().toLowerCase(); this._page = 0; this.render(); }, 150);
+        });
+      }
+      const paisSel = document.getElementById('cl-pais-filter');
+      if(paisSel) paisSel.addEventListener('change', (e) => { this._filter.pais = e.target.value; this._page = 0; this.render(); });
+      const planSel = document.getElementById('cl-plan-filter');
+      if(planSel) planSel.addEventListener('change', (e) => { this._filter.plan = e.target.value; this._page = 0; this.render(); });
+      const mrrSel = document.getElementById('cl-mrr-filter');
+      if(mrrSel) mrrSel.addEventListener('change', (e) => { this._filter.mrr = e.target.value; this._page = 0; this.render(); });
+      const periodSel = document.getElementById('cl-period-filter');
+      if(periodSel) periodSel.addEventListener('change', (e) => { this._filter.period = parseInt(e.target.value, 10) || 7; this.render(); });
+    },
+
+    setStatus(status){
+      this._filter.status = status;
+      this._page = 0;
+      document.querySelectorAll('.filter-pill-btn[data-cf]').forEach(t => t.classList.toggle('active', t.dataset.cf === status));
+      this.render();
+    },
+
+    _filtered(){
+      let out = this._clients.slice();
+      const f = this._filter;
+      if(f.status !== 'all'){
+        out = out.filter(c => (c.client_status || '').toLowerCase() === f.status);
+      }
+      if(f.pais){
+        out = out.filter(c => (c.pais || '') === f.pais);
+      }
+      if(f.plan){
+        out = out.filter(c => (c.plan || '') === f.plan);
+      }
+      if(f.mrr){
+        out = out.filter(c => {
+          const r = Number(c.revenue_30d) || 0;
+          if(f.mrr === '0')        return r === 0;
+          if(f.mrr === '1-99')     return r >= 1   && r < 100;
+          if(f.mrr === '100-499')  return r >= 100 && r < 500;
+          if(f.mrr === '500-1999') return r >= 500 && r < 2000;
+          if(f.mrr === '2000+')    return r >= 2000;
+          return true;
+        });
+      }
+      if(f.q){
+        const q = f.q;
+        out = out.filter(c => {
+          const haystack = [c.empresa, c.nombre, c.email, c.pais, c.plan]
+            .filter(Boolean).join(' ').toLowerCase();
+          return haystack.includes(q);
+        });
+      }
+      return out;
+    },
+
+    _updateCounts(){
+      const counts = { all: this._clients.length, activo: 0, trial: 0, churned: 0 };
+      this._clients.forEach(c => {
+        const s = (c.client_status || '').toLowerCase();
+        if(counts[s] !== undefined) counts[s]++;
+      });
+      Object.entries(counts).forEach(([k,v]) => {
+        const el = document.querySelector(`[data-cl-count="${k}"]`);
+        if(el) el.textContent = v;
+      });
+    },
+
+    _heatBars(c, period){
+      // Soporta varios shapes:
+      // - activity_by_day_30d  → 30 valores
+      // - activity_by_day_14d  → 14 valores
+      // - activity_by_day      → 7 valores (legacy)
+      let bars = null;
+      if(period === 30 && Array.isArray(c.activity_by_day_30d) && c.activity_by_day_30d.length) bars = c.activity_by_day_30d;
+      else if(period === 14 && Array.isArray(c.activity_by_day_14d) && c.activity_by_day_14d.length) bars = c.activity_by_day_14d;
+      else if(Array.isArray(c.activity_by_day) && c.activity_by_day.length) bars = c.activity_by_day;
+      if(!bars) bars = new Array(period).fill(0);
+      // Slice o pad para el periodo solicitado (gracefull fallback si la vista aún no se extendió)
+      if(bars.length > period) bars = bars.slice(-period);
+      else if(bars.length < period){
+        const pad = new Array(period - bars.length).fill(0);
+        bars = pad.concat(bars);
+      }
+      return bars;
+    },
+
     render(){
       const el = document.getElementById('cl-list');
       if(!el) return;
 
-      const total = this._clients.length;
-      if(total === 0){
+      const period = this._filter.period || 7;
+      const filtered = this._filtered();
+      const total = filtered.length;
+      const grandTotal = this._clients.length;
+
+      this._updateCounts();
+      const fc = document.getElementById('cl-filter-count');
+      if(fc) fc.textContent = `${total} de ${grandTotal}`;
+      const count = document.getElementById('cl-count');
+      if(count) count.textContent = `${total} clientes`;
+
+      if(grandTotal === 0){
         el.innerHTML = `<div class="feed-row"><div class="feed-icon">·</div><div class="feed-body dim">No hay clientes en Supabase aún.</div></div>`;
+        return;
+      }
+      if(total === 0){
+        el.innerHTML = `<div class="feed-row"><div class="feed-icon">·</div><div class="feed-body dim">Sin resultados con los filtros actuales.</div></div>`;
         return;
       }
 
@@ -309,15 +440,14 @@
       if(this._page >= pages) this._page = 0;
       const start = this._page * this._pageSize;
       const end = Math.min(start + this._pageSize, total);
-      const rows = this._clients.slice(start, end);
+      const rows = filtered.slice(start, end);
 
-      const moneda = (c) => c.moneda || '$';
       const fmt = (n) => '$' + Math.round(Number(n) || 0).toLocaleString('en');
 
       const header = `
         <div class="client-row" style="font-size:9px;color:var(--text3);font-family:'Geist Mono',monospace;letter-spacing:1.5px;text-transform:uppercase;padding-top:12px;padding-bottom:8px;">
           <div>CLIENTE</div>
-          <div>ACTIVIDAD 7D</div>
+          <div>ACTIVIDAD ${period}D</div>
           <div>LEADS 30D</div>
           <div>REV 30D</div>
           <div>PLAN</div>
@@ -326,15 +456,18 @@
         </div>
       `;
 
+      // Ancho dinámico por barra (más periodo → barras más finas)
+      const barWidth = period <= 7 ? 3 : period <= 14 ? 2 : 1.5;
+
       const body = rows.map(c => {
         const name = c.empresa || c.nombre || 'Sin nombre';
         const initial = name[0]?.toUpperCase() || '?';
-        const bars = Array.isArray(c.activity_by_day) ? c.activity_by_day : [0,0,0,0,0,0,0];
+        const bars = this._heatBars(c, period);
         const maxBar = Math.max(1, ...bars);
         const heatBars = bars.map(v => {
           const h = Math.max(10, (Number(v)/maxBar)*100);
           const active = Number(v) > 0;
-          return `<div class="heat-bar ${active ? 'active' : ''}" style="height:${h}%;${active ? '' : 'opacity:0.3;'}"></div>`;
+          return `<div class="heat-bar ${active ? 'active' : ''}" style="height:${h}%;width:${barWidth}px;${active ? '' : 'opacity:0.3;'}"></div>`;
         }).join('');
         const statusChip = c.client_status === 'activo'
           ? '<span class="chip chip-live"><span class="chip-dot"></span>LIVE</span>'
@@ -352,7 +485,7 @@
                 <div class="dim" style="font-size:10px;">${escapeHtml(c.pais||'')} · ${escapeHtml(c.plan||'—')}</div>
               </div>
             </div>
-            <div class="heat-bars" title="Últimos 7 días · ${bars.join(', ')}">${heatBars}</div>
+            <div class="heat-bars" title="Últimos ${period} días · ${bars.join(', ')}">${heatBars}</div>
             <div class="num">${c.total_leads_30d || 0}</div>
             <div class="num ${c.revenue_30d > 0 ? 'ok' : 'dim'}">${fmt(c.revenue_30d)}</div>
             <div class="dim">${(c.plan||'—').toUpperCase()}</div>
@@ -374,15 +507,11 @@
       ` : '';
 
       el.innerHTML = header + body + footer;
-
-      // Update count badge
-      const count = document.getElementById('cl-count');
-      if(count) count.textContent = `${total} clientes`;
     },
 
     prevPage(){ if(this._page > 0){ this._page--; this.render(); } },
     nextPage(){
-      const pages = Math.ceil(this._clients.length / this._pageSize);
+      const pages = Math.ceil(this._filtered().length / this._pageSize);
       if(this._page < pages - 1){ this._page++; this.render(); }
     }
   };

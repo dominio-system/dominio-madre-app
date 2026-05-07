@@ -11,7 +11,7 @@
     _invoices: [],
     _clients: [],
     _subscriptions: [],
-    _filter: { status: 'all', clientId: '' },
+    _filter: { status: 'all', clientId: '', q: '', dateRange: 'all' },
 
     async render(){
       const view = document.querySelector('.view[data-view="invoices"]');
@@ -44,9 +44,18 @@
           <button data-f="overdue" class="filter-pill-btn" onclick="InvoicesView.setFilter('status','overdue')">⚠ Overdue <span class="count">(<span data-iv-count="overdue">0</span>)</span></button>
           <button data-f="paid"    class="filter-pill-btn" onclick="InvoicesView.setFilter('status','paid')">✓ Pagadas <span class="count">(<span data-iv-count="paid">0</span>)</span></button>
           <button data-f="void"    class="filter-pill-btn" onclick="InvoicesView.setFilter('status','void')">✕ Void <span class="count">(<span data-iv-count="void">0</span>)</span></button>
-          <select id="iv-client-filter" style="background:var(--card2);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:999px;font-size:11px;font-family:inherit;outline:none;min-width:180px;margin-left:6px;">
+          <select id="iv-client-filter" style="background:var(--card2);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:999px;font-size:11px;font-family:inherit;outline:none;min-width:160px;margin-left:6px;">
             <option value="">Todos los clientes</option>
           </select>
+          <select id="iv-date-filter" style="background:var(--card2);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:999px;font-size:11px;font-family:inherit;outline:none;min-width:140px;">
+            <option value="all">Todo el tiempo</option>
+            <option value="7d">Últimos 7 días</option>
+            <option value="30d">Últimos 30 días</option>
+            <option value="90d">Últimos 90 días</option>
+            <option value="this_month">Este mes</option>
+            <option value="last_month">Mes pasado</option>
+          </select>
+          <input id="iv-search" type="search" placeholder="Buscar # o cliente…" autocomplete="off" style="background:var(--card2);border:1px solid var(--border);color:var(--text);padding:5px 12px;border-radius:999px;font-size:11px;font-family:inherit;outline:none;min-width:200px;" />
           <span style="margin-left:auto;font-size:10px;color:var(--text3);font-family:'Geist Mono',monospace;" id="iv-count">—</span>
         </div>
 
@@ -73,6 +82,15 @@
       document.getElementById('iv-refresh').onclick = () => this.load();
       document.getElementById('iv-new').onclick = () => this.openCreateModal();
       document.getElementById('iv-client-filter').onchange = (e) => this.setFilter('clientId', e.target.value);
+      document.getElementById('iv-date-filter').onchange = (e) => this.setFilter('dateRange', e.target.value);
+      const ivSearch = document.getElementById('iv-search');
+      let _t = null;
+      ivSearch.value = this._filter.q || '';
+      ivSearch.addEventListener('input', (e) => {
+        clearTimeout(_t);
+        const v = e.target.value;
+        _t = setTimeout(() => { this._filter.q = v.trim().toLowerCase(); this.renderTable(); }, 150);
+      });
 
       if(global.RBAC) global.RBAC.disableIfCant(document.getElementById('iv-new'), 'billing:write');
 
@@ -140,6 +158,38 @@
       }
       if(this._filter.clientId){
         out = out.filter(i => i.client_id === this._filter.clientId);
+      }
+      if(this._filter.q){
+        const q = this._filter.q;
+        out = out.filter(i => {
+          const haystack = [
+            i.number, i.id?.slice(0,8),
+            i.clients?.empresa, i.clients?.nombre, i.clients?.email,
+            i.description, i.payment_reference, i.payment_method
+          ].filter(Boolean).join(' ').toLowerCase();
+          return haystack.includes(q);
+        });
+      }
+      if(this._filter.dateRange && this._filter.dateRange !== 'all'){
+        const now = new Date();
+        let from = null, to = null;
+        const r = this._filter.dateRange;
+        if(r === '7d')        from = new Date(now - 7  * 864e5);
+        else if(r === '30d')  from = new Date(now - 30 * 864e5);
+        else if(r === '90d')  from = new Date(now - 90 * 864e5);
+        else if(r === 'this_month'){
+          from = new Date(now.getFullYear(), now.getMonth(), 1);
+        } else if(r === 'last_month'){
+          from = new Date(now.getFullYear(), now.getMonth()-1, 1);
+          to   = new Date(now.getFullYear(), now.getMonth(), 1);
+        }
+        out = out.filter(i => {
+          const d = i.created_at ? new Date(i.created_at) : null;
+          if(!d) return false;
+          if(from && d < from) return false;
+          if(to   && d >= to)   return false;
+          return true;
+        });
       }
       return out;
     },

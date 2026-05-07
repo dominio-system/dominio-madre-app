@@ -1,0 +1,83 @@
+-- ════════════════════════════════════════════════════════════════════════════
+-- Migration v1.0.21 · v_clients_full · activity_by_day_14d + activity_by_day_30d
+-- ════════════════════════════════════════════════════════════════════════════
+-- Razón: dashboard madre v1.0.21 agrega selector de heat-bars 7d/14d/30d en
+--        Clientes. La vista actual `v_clients_full` solo expone
+--        `activity_by_day` (7 valores). Esta migration extiende la vista para
+--        que las opciones 14d y 30d carguen data real (sin esto el dashboard
+--        hace gracefully fallback a todos ceros para esos periodos).
+--
+-- IDempotente: usa CREATE OR REPLACE VIEW.
+-- Aplicar en: Supabase SQL Editor (proyecto dominio-system)
+--
+-- ════════════════════════════════════════════════════════════════════════════
+
+-- IMPORTANTE: Este archivo asume que `v_clients_full` ya existe con la columna
+-- `activity_by_day` (array de 7 enteros desde generate_series · current_date - 6).
+-- Esta migration agrega las dos nuevas columnas SIN tocar las existentes.
+--
+-- Estructura típica esperada en la vista actual (referencia):
+--   activity_by_day :: int[] :: ARRAY(SELECT count(*) FROM appointments a
+--                                     WHERE a.client_id = c.id
+--                                       AND a.created_at::date = d::date
+--                                     FROM generate_series(current_date - 6, current_date, '1 day') d)
+--
+-- Si tu CREATE VIEW actual difiere, replica el patrón cambiando la cantidad de días.
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- Opción A · Reemplazo completo de la vista
+-- ──────────────────────────────────────────────────────────────────────────
+-- Descomenta el bloque que coincida con tu definición actual de v_clients_full.
+-- Si tu vista usa subqueries más complejos, copia el SELECT existente y agrega
+-- los dos LATERAL nuevos antes del FROM clients.
+--
+-- Ejemplo plantilla (ajustar a la realidad de tu proyecto):
+--
+-- CREATE OR REPLACE VIEW public.v_clients_full AS
+-- SELECT
+--   c.*,
+--   /* … columnas existentes (revenue_30d, total_leads_30d, etc.) … */
+--   (
+--     SELECT array_agg(coalesce(cnt, 0) ORDER BY d)
+--     FROM generate_series(current_date - 6, current_date, '1 day') d
+--     LEFT JOIN LATERAL (
+--       SELECT count(*) AS cnt
+--       FROM public.appointments a
+--       WHERE a.client_id = c.id AND a.created_at::date = d::date
+--     ) x ON true
+--   ) AS activity_by_day,
+--   (
+--     SELECT array_agg(coalesce(cnt, 0) ORDER BY d)
+--     FROM generate_series(current_date - 13, current_date, '1 day') d
+--     LEFT JOIN LATERAL (
+--       SELECT count(*) AS cnt
+--       FROM public.appointments a
+--       WHERE a.client_id = c.id AND a.created_at::date = d::date
+--     ) x ON true
+--   ) AS activity_by_day_14d,
+--   (
+--     SELECT array_agg(coalesce(cnt, 0) ORDER BY d)
+--     FROM generate_series(current_date - 29, current_date, '1 day') d
+--     LEFT JOIN LATERAL (
+--       SELECT count(*) AS cnt
+--       FROM public.appointments a
+--       WHERE a.client_id = c.id AND a.created_at::date = d::date
+--     ) x ON true
+--   ) AS activity_by_day_30d
+-- FROM public.clients c;
+--
+-- GRANT SELECT ON public.v_clients_full TO anon, authenticated;
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- Verificación
+-- ──────────────────────────────────────────────────────────────────────────
+-- SELECT
+--   id,
+--   array_length(activity_by_day, 1)     AS cnt_7d,    -- esperado 7
+--   array_length(activity_by_day_14d, 1) AS cnt_14d,   -- esperado 14
+--   array_length(activity_by_day_30d, 1) AS cnt_30d    -- esperado 30
+-- FROM public.v_clients_full
+-- LIMIT 3;
+--
+-- Si todas las columnas devuelven el length correcto, el dashboard madre
+-- v1.0.21 mostrará heat-bars de 7/14/30 días con data real.

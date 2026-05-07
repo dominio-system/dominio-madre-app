@@ -7,7 +7,7 @@
   const SubsView = {
     _subs: [],
     _clients: [],
-    _filter: { status: 'all' },
+    _filter: { status: 'all', q: '' },
 
     async render(){
       const view = document.querySelector('.view[data-view="subs"]');
@@ -37,6 +37,7 @@
           <button data-sf="past_due" class="filter-pill-btn" onclick="SubsView.setFilter('past_due')">⚠ Past Due <span class="count">(<span data-sv-count="past_due">0</span>)</span></button>
           <button data-sf="paused"   class="filter-pill-btn" onclick="SubsView.setFilter('paused')">⏸ Paused <span class="count">(<span data-sv-count="paused">0</span>)</span></button>
           <button data-sf="canceled" class="filter-pill-btn" onclick="SubsView.setFilter('canceled')">✕ Canceladas <span class="count">(<span data-sv-count="canceled">0</span>)</span></button>
+          <input id="sv-search" type="search" placeholder="Buscar cliente, plan…" autocomplete="off" style="background:var(--card2);border:1px solid var(--border);color:var(--text);padding:5px 12px;border-radius:999px;font-size:11px;font-family:inherit;outline:none;min-width:220px;margin-left:6px;" />
           <span style="margin-left:auto;font-size:10px;color:var(--text3);font-family:'Geist Mono',monospace;" id="sv-count">— de —</span>
         </div>
 
@@ -54,6 +55,14 @@
 
       document.getElementById('sv-refresh').onclick = () => this.load();
       document.getElementById('sv-new').onclick = () => this.openCreateModal();
+      const sInput = document.getElementById('sv-search');
+      let _t = null;
+      sInput.value = this._filter.q || '';
+      sInput.addEventListener('input', (e) => {
+        clearTimeout(_t);
+        const v = e.target.value;
+        _t = setTimeout(() => { this._filter.q = v.trim().toLowerCase(); this.renderTable(); }, 150);
+      });
       if(global.RBAC) global.RBAC.disableIfCant(document.getElementById('sv-new'), 'billing:write');
 
       await this.load();
@@ -103,8 +112,21 @@
     },
 
     _filtered(){
-      if(this._filter.status === 'all') return this._subs.slice();
-      return this._subs.filter(s => s.status === this._filter.status);
+      let out = this._subs.slice();
+      if(this._filter.status !== 'all'){
+        out = out.filter(s => s.status === this._filter.status);
+      }
+      if(this._filter.q){
+        const q = this._filter.q;
+        out = out.filter(s => {
+          const haystack = [
+            s.clients?.empresa, s.clients?.nombre, s.clients?.email,
+            s.plan, s.plan_label, s.currency
+          ].filter(Boolean).join(' ').toLowerCase();
+          return haystack.includes(q);
+        });
+      }
+      return out;
     },
 
     renderTable(){

@@ -33,4 +33,27 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Abre las DevTools del dashboard (modo detach) — útil para debugging
   // sin necesidad de reabrir la app con --dev.
   openDevTools: () => ipcRenderer.send('open-devtools'),
+
+  // ─── Sentry bridge (v1.0.31) · captura errores de renderer vía main ──
+  // Renderer no tiene Node, así que pasa errores por IPC al main process.
+  sentryCapture: (err) => {
+    try {
+      const payload = err instanceof Error
+        ? { name: err.name, message: err.message, stack: err.stack }
+        : { name: 'Error', message: String(err), stack: null };
+      ipcRenderer.send('sentry:capture-exception', payload);
+    } catch (_) { /* noop */ }
+  },
+  sentryMessage: (msg, level = 'info') => {
+    try { ipcRenderer.send('sentry:capture-message', { message: msg, level }); }
+    catch (_) { /* noop */ }
+  },
+  sentrySetUser: (user) => {
+    try { ipcRenderer.send('sentry:set-user', user); }
+    catch (_) { /* noop */ }
+  },
+  sentrySetTag: (key, value) => {
+    try { ipcRenderer.send('sentry:set-tag', { key, value }); }
+    catch (_) { /* noop */ }
+  },
 });

@@ -501,6 +501,45 @@ ipcMain.on('open-devtools', () => {
   }
 });
 
+// ─── Sentry renderer bridge (v1.0.31) ───────────────────────────────────────
+// El renderer (dashboard/login) no tiene Node.js, así que nos pasa errores
+// por IPC y los capturamos desde el main process.
+ipcMain.on('sentry:capture-exception', (_evt, payload) => {
+  try {
+    const err = new Error(payload?.message || 'Unknown renderer error');
+    if (payload?.stack) err.stack = payload.stack;
+    if (payload?.name)  err.name  = payload.name;
+    Sentry.captureException(err, {
+      tags: { source: 'renderer', ...(payload?.tags || {}) },
+      extra: payload?.extra || {},
+    });
+  } catch (e) { console.warn('[Sentry] capture-exception falló:', e.message); }
+});
+
+ipcMain.on('sentry:capture-message', (_evt, payload) => {
+  try {
+    Sentry.captureMessage(String(payload?.message || '').slice(0, 500), {
+      level: ['fatal','error','warning','info','debug'].includes(payload?.level) ? payload.level : 'info',
+      tags: { source: 'renderer', ...(payload?.tags || {}) },
+    });
+  } catch (e) { console.warn('[Sentry] capture-message falló:', e.message); }
+});
+
+ipcMain.on('sentry:set-user', (_evt, user) => {
+  try {
+    // Solo UUID del user, NUNCA email/nombre (PII protection)
+    Sentry.setUser(user && user.id ? { id: String(user.id) } : null);
+  } catch (e) { console.warn('[Sentry] set-user falló:', e.message); }
+});
+
+ipcMain.on('sentry:set-tag', (_evt, { key, value } = {}) => {
+  try {
+    if (typeof key === 'string' && key.length < 40 && !_PII_KEY_RE.test(key)) {
+      Sentry.setTag(key, String(value).slice(0, 200));
+    }
+  } catch (e) { console.warn('[Sentry] set-tag falló:', e.message); }
+});
+
 // check-updates: consulta GitHub Releases API por la última versión publicada
 // y compara con app.getVersion(). Si el repo es privado o no tiene releases,
 // devuelve estado 'unavailable' con mensaje legible.

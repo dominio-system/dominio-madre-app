@@ -1318,6 +1318,28 @@ renderBars();
   // Y exponer globalmente para que settings-view lo llame directamente (mismo tab)
   window.syncSidebarUser = syncSidebarUser;
 
+  // v1.0.31 · Sentry renderer · captura errores no-handled + identifica usuario
+  try {
+    if(USER?.id) electronAPI?.sentrySetUser?.({ id: USER.id });
+    if(USER?.role) electronAPI?.sentrySetTag?.('role', USER.role);
+    window.addEventListener('error', (event) => {
+      try {
+        const err = event.error || new Error(event.message || 'window.onerror');
+        // Track último error para incluirlo en bug-reports vía openSupport
+        window._lastErrorMsg = err.message || String(err);
+        electronAPI?.sentryCapture?.(err);
+      } catch(_){}
+    });
+    window.addEventListener('unhandledrejection', (event) => {
+      try {
+        const reason = event.reason;
+        const err = reason instanceof Error ? reason : new Error(String(reason || 'Unhandled promise rejection'));
+        window._lastErrorMsg = err.message || String(err);
+        electronAPI?.sentryCapture?.(err);
+      } catch(_){}
+    });
+  } catch(e){ console.warn('[Sentry renderer setup]:', e.message); }
+
   // Init RBAC (Fase 1) — carga scopes del team_member activo
   if(window.RBAC && USER){
     await RBAC.init({ sbGet, userId: USER.id });

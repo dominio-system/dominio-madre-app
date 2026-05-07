@@ -490,12 +490,17 @@ body.notif-open .notif-overlay{pointer-events:auto;}
 
     <!-- 6. PLATAFORMA · integraciones · weekly+ -->
     <div class="nav-group closed" data-group="plataforma">
-      <div class="group-head" onclick="toggleGroup('plataforma')"><div class="group-chev"><svg viewBox="0 0 8 8" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3l2 2 2-2"/></svg></div><div class="group-label">Plataforma</div><div class="group-count">3</div></div>
+      <div class="group-head" onclick="toggleGroup('plataforma')"><div class="group-chev"><svg viewBox="0 0 8 8" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3l2 2 2-2"/></svg></div><div class="group-label">Plataforma</div><div class="group-count">1</div></div>
       <div class="group-items">
         <div class="nav-item" data-view="integrations" data-label="Integraciones" onclick="go('integrations')"><span class="nav-icon"><svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="3.5" cy="3.5" r="2"/><circle cx="9.5" cy="9.5" r="2"/><path d="M5 5l3 3"/></svg></span><span class="nav-text">Integraciones</span></div>
-        <!-- v1.0.26 · Webhooks + API Keys reactivados (Enterprise integration · clientes Pro/Enterprise pueden integrar con sus sistemas) -->
+        <!-- v1.0.30 · Webhooks + Llaves API OCULTOS del sidebar madre.
+             Decisión arquitectónica: estas features son PER-TENANT (cada cliente
+             genera/gestiona sus propias keys/webhooks), no founder-level.
+             Migran al dominio-client-app en sprint Enterprise post-LLC.
+             Handlers vivos · accesibles vía go('webhooks') o go('keys') o ⌘K.
         <div class="nav-item" data-view="webhooks" data-label="Webhooks" onclick="go('webhooks')"><span class="nav-icon"><svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="6.5" cy="4" r="2"/><path d="M4.5 6l-2 4M8.5 6l2 4M5 11h3.5"/></svg></span><span class="nav-text">Webhooks</span></div>
         <div class="nav-item" data-view="keys" data-label="Llaves API" onclick="go('keys')"><span class="nav-icon"><svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="4" cy="6.5" r="2.5"/><path d="M6.5 6.5h5v2M9.5 6.5v2"/></svg></span><span class="nav-text">Llaves API</span></div>
+        -->
       </div>
     </div>
 

@@ -219,10 +219,10 @@
 
       // ─── Resumen textual ───
       const issues = [];
-      if(d.dunningCount > 0) issues.push(`<strong>${d.dunningCount} factura${d.dunningCount === 1 ? '' : 's'} en cobranza</strong> por ${fmt$(d.dunningTotal)} · revisá <a onclick="go('dunning')" style="color:var(--accent);cursor:pointer;text-decoration:underline;">Cobranza</a>`);
+      if(d.dunningCount > 0) issues.push(`<strong>${d.dunningCount} factura${d.dunningCount === 1 ? '' : 's'} en cobranza</strong> por ${fmt$(d.dunningTotal)} · revisa <a onclick="go('dunning')" style="color:var(--accent);cursor:pointer;text-decoration:underline;">Cobranza</a>`);
       if(d.breachedSla > 0) issues.push(`<strong>${d.breachedSla} ticket${d.breachedSla === 1 ? '' : 's'} con SLA vencido</strong> · atender en <a onclick="go('tickets')" style="color:var(--accent);cursor:pointer;text-decoration:underline;">Tickets</a>`);
-      if(d.uptimeAvg != null && d.uptimeAvg < 99) issues.push(`Uptime promedio <strong>${d.uptimeAvg.toFixed(2)}%</strong> · investigá en <a onclick="go('status')" style="color:var(--accent);cursor:pointer;text-decoration:underline;">Estado del Sistema</a>`);
-      if(d.churnPct > 5) issues.push(`Churn 30d en <strong>${d.churnPct.toFixed(1)}%</strong> · revisá <a onclick="go('subs')" style="color:var(--accent);cursor:pointer;text-decoration:underline;">Suscripciones</a>`);
+      if(d.uptimeAvg != null && d.uptimeAvg < 99) issues.push(`Uptime promedio <strong>${d.uptimeAvg.toFixed(2)}%</strong> · investiga en <a onclick="go('status')" style="color:var(--accent);cursor:pointer;text-decoration:underline;">Estado del Sistema</a>`);
+      if(d.churnPct > 5) issues.push(`Churn 30d en <strong>${d.churnPct.toFixed(1)}%</strong> · revisa <a onclick="go('subs')" style="color:var(--accent);cursor:pointer;text-decoration:underline;">Suscripciones</a>`);
 
       const summary = issues.length > 0
         ? `Hay <strong>${issues.length}</strong> punto${issues.length === 1 ? '' : 's'} que requiere${issues.length === 1 ? '' : 'n'} atención:<br><br>` +

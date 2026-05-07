@@ -414,10 +414,10 @@
             <div style="font-size:11px;color:var(--text3);font-family:'Geist Mono',monospace;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">DESTINATARIO</div>
             <div style="padding:10px;background:var(--card2);border-radius:5px;font-size:12px;margin-bottom:14px;">
               <div><strong>${escapeHtml(t.requester_name || t.requester_email)}</strong></div>
-              <div class="dim" style="font-family:monospace;font-size:11px;">${escapeHtml(t.requester_email)}</div>
+              <div class="dim" style="font-family:'Geist Mono',monospace;font-size:11px;">${escapeHtml(t.requester_email)}</div>
             </div>
             <div style="font-size:11px;color:var(--text3);font-family:'Geist Mono',monospace;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">REMITENTE</div>
-            <div style="font-size:11px;color:var(--text2);margin-bottom:14px;font-family:monospace;">soporte@dominiosystem.com</div>
+            <div style="font-size:11px;color:var(--text2);margin-bottom:14px;font-family:'Geist Mono',monospace;">soporte@dominiosystem.com</div>
             <div style="font-size:11px;color:var(--text3);font-family:'Geist Mono',monospace;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">ASUNTO</div>
             <div style="font-size:12px;color:var(--text);margin-bottom:14px;">Re: ${escapeHtml(t.subject)}</div>
             <div style="font-size:11px;color:var(--text3);font-family:'Geist Mono',monospace;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">MENSAJE DE RESOLUCIÓN</div>

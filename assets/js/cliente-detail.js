@@ -251,7 +251,7 @@
       this._renderTable(rows, ['Nombre','WhatsApp','Status','Fuente','Intent','Creado'], (l) => `
         <tr>
           <td><strong>${escapeHtml(l.nombre || '—')}</strong></td>
-          <td class="dim" style="font-family:monospace;">${escapeHtml(l.whatsapp || '—')}</td>
+          <td class="dim" style="font-family:'Geist Mono',monospace;">${escapeHtml(l.whatsapp || '—')}</td>
           <td><span class="chip ${l.status === 'cliente' ? 'chip-ok' : l.status === 'perdido' ? 'chip-err' : 'chip-warn'}" style="font-size:9px;">${escapeHtml((l.status||'?').toUpperCase())}</span></td>
           <td>${escapeHtml(l.utm_source || l.fuente || '—')}</td>
           <td class="num">${l.intent_score || '—'}</td>

@@ -8,7 +8,9 @@ const fs = require('fs');
 // Compartimos proyecto con cliente · diferenciamos por `release` tag.
 const SENTRY_DSN = 'https://fe808b6a8002aed80b9893cd68ed72c5@o4511273677422592.ingest.us.sentry.io/4511273688170496';
 
-const _PII_KEY_RE = /(token|jwt|password|apikey|api[_-]?key|secret|authorization|session|refresh|credentials|bearer)/i;
+// v1.0.20 · regex extendido · cubre supabase_anon, anon_key, dsn de Sentry,
+// stripe sk_/pk_, etc. Previene fugas en breadcrumbs/extra a Sentry.
+const _PII_KEY_RE = /(token|jwt|password|apikey|api[_-]?key|secret|authorization|session|refresh|credentials|bearer|supabase_anon|anon_key|service_role|dsn|stripe_(sk|pk)_)/i;
 
 function _scrubObject(obj, depth = 0) {
   if (!obj || typeof obj !== 'object' || depth > 5) return obj;
@@ -489,6 +491,10 @@ ipcMain.handle('app-info', () => ({
 
 // open-devtools: abre devtools del dashboard window. Útil cuando founder
 // necesita ver consola sin tener que reabrir app con --dev.
+//
+// Decisión consciente v1.0.20: madre app es single-user (founder) · DevTools
+// queda accesible incluso en build packaged. Cuando se contrate equipo y
+// pase a multi-user, gatear por `app.isPackaged === false` o por role.
 ipcMain.on('open-devtools', () => {
   if (dashboardWindow && !dashboardWindow.isDestroyed()) {
     dashboardWindow.webContents.openDevTools({ mode: 'detach' });

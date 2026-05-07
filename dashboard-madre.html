@@ -537,7 +537,7 @@ body.notif-open .notif-overlay{pointer-events:auto;}
     <div class="crumb"><span>Dominio Corporativo</span><span class="sep">›</span><span class="current" id="crumb-current">Command Center</span><span class="date" id="crumb-date">— Abril 2026</span></div>
     <!-- Migración v1.0.8 · Widgets topbar (TZ + Theme + Help + Notif) -->
     <div class="topbar-widgets">
-      <div class="tz-chip" id="tz-chip" onclick="goView('settings')" title="Click para configurar zona horaria">
+      <div class="tz-chip" id="tz-chip" onclick="go('settings')" title="Click para configurar zona horaria">
         <span class="tz-dot"></span>
         <span class="tz-time" id="tz-time">--:--</span>
         <span class="tz-sep">·</span>
@@ -1296,7 +1296,7 @@ renderBars();
 
   // Fase 4: polish con Command Center real + sparklines + heat-bars + realtime + cache
   if(window.initMadrePolish){
-    window.initMadrePolish();
+    window.initMadrePolish().catch(err => console.error('[initMadrePolish]', err.message || err));
   }
 })();
 

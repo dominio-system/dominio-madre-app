@@ -55,7 +55,7 @@
 
       document.getElementById('tv-refresh').onclick = () => this.load();
       document.getElementById('tv-new').onclick = () => this.openCreateModal();
-      if(global.RBAC) global.RBAC.disableIfCant(document.getElementById('tv-new'), 'users:rw');
+      if(global.RBAC) global.RBAC.disableIfCant(document.getElementById('tv-new'), 'tickets:rw');
       await this.load();
     },
 
@@ -245,7 +245,7 @@
     },
 
     openCreateModal(){
-      if(!global.RBAC?.can('users:rw')){ global.toast?.('Sin permiso', 'err'); return; }
+      if(!global.RBAC?.can('tickets:rw')){ global.toast?.('Sin permiso', 'err'); return; }
       const body = `
         <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;">
           <div style="font-size:14px;font-weight:600;">Nuevo ticket</div>

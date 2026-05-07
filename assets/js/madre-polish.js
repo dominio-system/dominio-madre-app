@@ -531,11 +531,21 @@
     // Lista de clientes con heat-bars
     await ClientsList.load();
 
-    // Refrescar cada 60s
-    setInterval(() => {
-      Cache.invalidate();
-      if(global.currentView === 'command') loadCommandCenterReal();
-      if(global.currentView === 'clients') ClientsList.load();
+    // Refrescar cada 60s · con throttle para evitar race condition
+    // si una iteración tarda >60s en internet lento (v1.0.20 fix bug audit)
+    let _refreshInProgress = false;
+    setInterval(async () => {
+      if(_refreshInProgress) return;
+      _refreshInProgress = true;
+      try {
+        Cache.invalidate();
+        const tasks = [];
+        if(global.currentView === 'command') tasks.push(loadCommandCenterReal().catch(()=>{}));
+        if(global.currentView === 'clients') tasks.push(ClientsList.load().catch(()=>{}));
+        await Promise.all(tasks);
+      } finally {
+        _refreshInProgress = false;
+      }
     }, 60000);
 
     // Activar realtime

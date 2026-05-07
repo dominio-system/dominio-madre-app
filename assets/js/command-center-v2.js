@@ -8,10 +8,10 @@
 //   2. Activity feed (lee v_global_activity_feed o invoices recientes)
 //   3. Health por servicio (lee uptime_checks)
 //
-// Datos:
-//   - Bar chart: fake data determinística (TODO: conectar a v_revenue_daily)
-//   - Activity: v_global_activity_feed (existente · usado por madre-polish v1)
-//   - Health: uptime_checks (existente)
+// Datos (v1.0.19 · todo conectado a Supabase real):
+//   - Bar chart: invoices.paid_at agregado por día (cache 5min · igual a Revenue view)
+//   - Activity: v_global_activity_feed
+//   - Health: uptime_checks
 //
 // Hook: se llama desde go('command') · ver topbar-extras y dashboard-madre.html
 // ============================================
@@ -28,28 +28,71 @@
     return { y: d.getFullYear(), m: d.getMonth(), d: d.getDate() };
   }
 
-  let chartView = null;  // { y, m } estado actual del navegador
+  let chartView = null;     // { y, m } estado actual del navegador
+  let invoicesCache = null; // [{ amount_paid_cents, paid_at }, ...] · refrescado al render()
+  let invoicesCachedAt = 0;
+  const CACHE_TTL_MS = 5 * 60 * 1000;  // 5 min
 
-  // Datos por mes · seed determinístico para evitar saltos visuales en demo
-  // TODO Fase 2: reemplazar con sbGet('v_revenue_daily', `month=eq.YYYY-MM`)
-  function genMonthData(y, m){
+  // ─── Datos reales por mes (lee invoices PAID · agrega por día) ───
+  // Antes: seed determinístico fake. Ahora: data real de Supabase.
+  // Si la tabla está vacía o falla la query, devuelve días vacíos (sin barras).
+  async function getMonthData(y, m){
     const today = getToday();
     const daysInMonth = new Date(y, m + 1, 0).getDate();
-    const seed = (y * 100 + m) * 9301 + 49297;
-    const rand = (i) => {
-      const x = Math.sin(seed + i * 17) * 10000;
-      return x - Math.floor(x);
-    };
+
+    // Lazy-load invoices (cache 5 min)
+    if(!invoicesCache || Date.now() - invoicesCachedAt > CACHE_TTL_MS){
+      try {
+        invoicesCache = await global.sbGet('invoices',
+          'status=eq.paid&select=amount_paid_cents,paid_at&order=paid_at.desc&limit=2000'
+        ) || [];
+        invoicesCachedAt = Date.now();
+      } catch(err){
+        console.warn('[CommandCenterV2] invoices fetch:', err.message);
+        invoicesCache = [];
+      }
+    }
+
+    // Bucket por día
+    const buckets = {};
+    for(let d = 1; d <= daysInMonth; d++) buckets[d] = 0;
+    (invoicesCache || []).forEach(inv => {
+      if(!inv.paid_at) return;
+      const d = new Date(inv.paid_at);
+      if(d.getFullYear() !== y || d.getMonth() !== m) return;
+      buckets[d.getDate()] += (inv.amount_paid_cents || 0) / 100;
+    });
+
+    // Marcar future
     const arr = [];
     for(let d = 1; d <= daysInMonth; d++){
       const isFuture = (y > today.y) || (y === today.y && m > today.m) || (y === today.y && m === today.m && d > today.d);
       if(isFuture){
         arr.push({ day:d, value:null, future:true });
       } else {
-        const r = rand(d);
-        const value = r < 0.2 ? 0 : Math.round(50 + r * 480);
-        arr.push({ day:d, value, future:false });
+        arr.push({ day:d, value: Math.round(buckets[d]), future:false });
       }
+    }
+    return arr;
+  }
+
+  // Compatibilidad temporal con código legacy (alias síncrono que devuelve cache)
+  // Si el cache no está cargado, devuelve días vacíos. Si ya cargó, agrega del cache.
+  function genMonthData(y, m){
+    const today = getToday();
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    const buckets = {};
+    for(let d = 1; d <= daysInMonth; d++) buckets[d] = 0;
+    (invoicesCache || []).forEach(inv => {
+      if(!inv.paid_at) return;
+      const d = new Date(inv.paid_at);
+      if(d.getFullYear() !== y || d.getMonth() !== m) return;
+      buckets[d.getDate()] += (inv.amount_paid_cents || 0) / 100;
+    });
+    const arr = [];
+    for(let d = 1; d <= daysInMonth; d++){
+      const isFuture = (y > today.y) || (y === today.y && m > today.m) || (y === today.y && m === today.m && d > today.d);
+      arr.push(isFuture ? { day:d, value:null, future:true } : { day:d, value: Math.round(buckets[d]), future:false });
     }
     return arr;
   }
@@ -227,9 +270,11 @@
   global.cc2NavMonth = navMonth;
   global.cc2NavToday = navToday;
   global.CommandCenterV2 = {
-    render(){
+    async render(){
       const today = getToday();
       if(!chartView) chartView = { y: today.y, m: today.m };
+      // Cargar invoices cache primero (para que el bar chart muestre data real desde el inicio)
+      await getMonthData(chartView.y, chartView.m);
       renderBarChart();
       loadActivityFeed();
       loadHealth();

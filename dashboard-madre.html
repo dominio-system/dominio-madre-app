@@ -857,6 +857,9 @@ body.notif-open .notif-overlay{pointer-events:auto;}
 <script src="assets/js/bar-chart-with-monthnav.js"></script>
 <!-- v1.0.16 · Salud del Negocio · dashboard ejecutivo con 6 KPIs -->
 <script src="assets/js/health-view.js"></script>
+<!-- v1.0.19 · modularización · loadRevenueReal y loadIntegrationsReal salen del HTML -->
+<script src="assets/js/revenue-view.js"></script>
+<script src="assets/js/integrations-view.js"></script>
 <!-- Fase 4: polish (Command Center real, sparklines, heat-bars, realtime, cache) -->
 <script src="assets/js/madre-polish.js"></script>
 
@@ -1298,189 +1301,14 @@ renderBars();
 })();
 
 // ============================================
-// loadIntegrationsReal: detecta status real de cada servicio integrado · v1.0.12
+// loadIntegrationsReal: ahora vive en assets/js/integrations-view.js (v1.0.19)
+// El alias global queda definido en integrations-view.js para compat.
 // ============================================
-async function loadIntegrationsReal(){
-  const setChip = (intName, label, kind) => {
-    const card = document.querySelector(`.int-card[data-int="${intName}"]`);
-    if(!card) return;
-    const chip = card.querySelector('[data-int-chip]');
-    if(!chip) return;
-    chip.className = 'chip ' + (kind === 'ok' ? 'chip-ok' : kind === 'warn' ? 'chip-warn' : 'chip-off');
-    chip.innerHTML = `<span class="chip-dot"></span>${label}`;
-  };
-  const setMeta = (intName, attr, value) => {
-    const card = document.querySelector(`.int-card[data-int="${intName}"]`);
-    const el = card?.querySelector(`[data-int-${attr}]`);
-    if(el) el.textContent = value;
-  };
-  const setSub = (intName, sub) => {
-    const card = document.querySelector(`.int-card[data-int="${intName}"]`);
-    const el = card?.querySelector('[data-int-sub]');
-    if(el) el.textContent = sub;
-  };
-
-  try {
-    const [stripeInvs, n8nUptime, supaClients, metaLeads, googleLeads, webhooksActive] = await Promise.all([
-      sbGet('invoices', 'select=id,paid_at,stripe_invoice_id&order=paid_at.desc.nullslast&limit=10').catch(()=>[]),
-      sbGet('uptime_checks', 'service=eq.n8n&select=last_status,last_checked_at,uptime_30d_pct&limit=1').catch(()=>[]),
-      sbGet('clients', 'select=id&limit=1', { count: 'exact' }).catch(()=>[]),
-      sbGet('leads', `utm_source=in.(meta,facebook,instagram,fb)&created_at=gte.${new Date(Date.now()-30*864e5).toISOString()}&select=id,created_at&order=created_at.desc&limit=100`).catch(()=>[]),
-      sbGet('leads', `utm_source=in.(google,gclid)&created_at=gte.${new Date(Date.now()-30*864e5).toISOString()}&select=id,created_at&order=created_at.desc&limit=100`).catch(()=>[]),
-      sbGet('webhooks', 'enabled=eq.true&select=id&limit=10').catch(()=>[]),
-    ]);
-
-    // Stripe · cuento invoices con stripe_invoice_id no null
-    const stripeLive = (stripeInvs || []).filter(i => i.stripe_invoice_id);
-    if(stripeLive.length > 0){
-      setChip('stripe', 'LIVE', 'ok');
-      setSub('stripe', `PAYMENTS · ${stripeLive.length} invoices`);
-      setMeta('stripe', 'stripe-invoices', `${stripeLive.length} con stripe_id`);
-      const last = stripeLive.find(i => i.paid_at);
-      setMeta('stripe', 'stripe-last', last ? `<span data-ts="${last.paid_at}">${MadreUtils.relativeTime(last.paid_at)}</span>` : '—');
-    } else {
-      setChip('stripe', 'OFF', 'off');
-      setSub('stripe', 'PAYMENTS · sin invoices Stripe');
-      setMeta('stripe', 'stripe-invoices', '0');
-      setMeta('stripe', 'stripe-last', '—');
-    }
-
-    // n8n · uptime_checks
-    const n8n = (n8nUptime || [])[0];
-    if(n8n){
-      const status = (n8n.last_status || 'unknown').toLowerCase();
-      if(status === 'ok'){
-        setChip('n8n', 'LIVE', 'ok');
-      } else if(status === 'slow'){
-        setChip('n8n', 'SLOW', 'warn');
-      } else {
-        setChip('n8n', 'FAIL', 'off');
-      }
-      setMeta('n8n', 'n8n-uptime', n8n.uptime_30d_pct != null ? parseFloat(n8n.uptime_30d_pct).toFixed(2) + '%' : '—');
-      setMeta('n8n', 'n8n-last', n8n.last_checked_at ? `<span data-ts="${n8n.last_checked_at}">${MadreUtils.relativeTime(n8n.last_checked_at)}</span>` : '—');
-    } else {
-      setChip('n8n', 'NO MONITOR', 'warn');
-    }
-
-    // Supabase · si llegamos hasta acá y tenemos data → LIVE
-    setChip('supabase', 'LIVE', 'ok');
-    setMeta('supabase', 'supa-clients', Array.isArray(supaClients) ? `${supaClients.length}+` : '—');
-    setMeta('supabase', 'supa-realtime', '4 canales activos');
-
-    // Meta · si hay leads con utm_source=meta/facebook → activo
-    if((metaLeads || []).length > 0){
-      setChip('meta', 'ACTIVO', 'ok');
-      setMeta('meta', 'meta-leads', metaLeads.length);
-      const last = metaLeads[0];
-      setMeta('meta', 'meta-last', last?.created_at ? `<span data-ts="${last.created_at}">${MadreUtils.relativeTime(last.created_at)}</span>` : '—');
-    } else {
-      setChip('meta', 'OFF', 'off');
-      setMeta('meta', 'meta-leads', '0');
-      setMeta('meta', 'meta-last', '—');
-    }
-
-    // Google · si hay leads con utm_source=google → activo
-    if((googleLeads || []).length > 0){
-      setChip('google', 'ACTIVO', 'ok');
-      setMeta('google', 'google-leads', googleLeads.length);
-      const last = googleLeads[0];
-      setMeta('google', 'google-last', last?.created_at ? `<span data-ts="${last.created_at}">${MadreUtils.relativeTime(last.created_at)}</span>` : '—');
-    } else {
-      setChip('google', 'OFF', 'off');
-      setMeta('google', 'google-leads', '0');
-      setMeta('google', 'google-last', '—');
-    }
-
-    // Resend · activo si tenemos webhooks salientes (proxy: hay actividad outbound vía n8n)
-    setMeta('resend', 'resend-webhooks', (webhooksActive || []).length);
-
-    // Sub-header
-    const sub = document.getElementById('int-sub');
-    if(sub){
-      const liveCount = document.querySelectorAll('.int-card .chip-ok').length;
-      const total = document.querySelectorAll('.int-card').length;
-      sub.textContent = `PLATAFORMA · ${liveCount}/${total} servicios activos`;
-    }
-
-    // Auto-format timestamps inyectados
-    setTimeout(() => MadreUtils?.formatTimestamps?.(document.querySelector('.view[data-view="integrations"]')), 50);
-  } catch(err){
-    console.warn('[loadIntegrationsReal]', err.message);
-  }
-}
 
 // ============================================
-// loadRevenueReal: Revenue view con MRR desde v_mrr_live + chart desde v_revenue_by_month
+// loadRevenueReal: ahora vive en assets/js/revenue-view.js (v1.0.19)
+// El alias global queda definido en revenue-view.js para compat con código viejo.
 // ============================================
-async function loadRevenueReal(){
-  try {
-    const [mrrRows, paidInvoices] = await Promise.all([
-      sbGet('v_mrr_live', 'select=*').catch(()=>[]),
-      // Pull todas las invoices PAID · ordenadas para que el bar chart pueda agregar por día
-      sbGet('invoices', 'status=eq.paid&select=amount_paid_cents,paid_at&order=paid_at.desc&limit=2000').catch(()=>[])
-    ]);
-
-    const mrr = mrrRows?.[0] || {};
-    const total = mrr.mrr_total || 0;
-    const arr = total * 12;
-    const activeSubs = mrr.active_subs || 0;
-    const rpc = activeSubs ? total / activeSubs : 0;
-
-    const $ = (id) => document.getElementById(id);
-    if($('rev-mrr'))     $('rev-mrr').textContent     = '$' + Math.round(total).toLocaleString('en');
-    if($('rev-arr'))     $('rev-arr').textContent     = '$' + Math.round(arr).toLocaleString('en');
-    if($('rev-rpc'))     $('rev-rpc').textContent     = '$' + Math.round(rpc).toLocaleString('en');
-    if($('rev-clients')) $('rev-clients').textContent = activeSubs;
-
-    // Bar chart con month navigator · igual al cliente
-    if(window.MadreBarChart && !window._revBarInited){
-      window._revBarInited = true;
-      // Cache invoices por día para el bar chart
-      window._revInvoices = paidInvoices || [];
-      window.MadreBarChart.create({
-        containerId: 'rev-bar-container',
-        monthNavId:  'rev-month-nav',
-        statsId:     'rev-bar-stats',
-        formatValue: (v) => '$' + Math.round(v).toLocaleString('en'),
-        getDataForMonth: async (year, month) => {
-          const today = new Date();
-          const daysInMonth = new Date(year, month + 1, 0).getDate();
-          // Buckets por día
-          const buckets = {};
-          for(let d = 1; d <= daysInMonth; d++) buckets[d] = 0;
-          (window._revInvoices || []).forEach(inv => {
-            if(!inv.paid_at) return;
-            const d = new Date(inv.paid_at);
-            if(d.getFullYear() !== year || d.getMonth() !== month) return;
-            buckets[d.getDate()] += (inv.amount_paid_cents || 0) / 100;
-          });
-          // Marcar future
-          return Array.from({ length: daysInMonth }, (_, i) => {
-            const day = i + 1;
-            const isFuture = (year > today.getFullYear()) ||
-                             (year === today.getFullYear() && month > today.getMonth()) ||
-                             (year === today.getFullYear() && month === today.getMonth() && day > today.getDate());
-            return { day, value: buckets[day], future: isFuture };
-          });
-        }
-      });
-    } else if(window._revBarInited){
-      // Refrescar data si ya estaba inicializado
-      window._revInvoices = paidInvoices || [];
-      // Forzar re-render: dispatch click en HOY
-      document.querySelector('#rev-month-nav [data-bn-today]')?.click();
-    }
-
-    // Quitar "STRIPE PENDIENTE" pill si tenemos al menos una invoice paid
-    const stripePill = $('stripe-pill');
-    if(stripePill && (paidInvoices || []).length > 0){
-      stripePill.className = 'pill pill-ok';
-      stripePill.innerHTML = '<span class="pill-dot"></span>STRIPE LIVE';
-    }
-  } catch(err){
-    console.warn('[loadRevenueReal]', err.message);
-  }
-}
 
 // ============================================
 // loadTeamStats: card ORGANIZACIÓN con data real

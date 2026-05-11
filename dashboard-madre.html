@@ -1152,7 +1152,8 @@ function initChartsForView(view){
 // ============================================
 async function loadData(){
   try{
-    const supaChip=document.getElementById('supa-chip');
+    // v1.0.36 · Fix ELECTRON-8 · supa-chip removido en v1.0.35 (panel Integrations lo reemplaza)
+    // Mantenemos refs defensivas via optional chaining; ya no hardcoded const.
     // Excluir clientes Demo (is_demo=true) — no contaminan métricas globales
     const clients=await sbGet('clients','status=eq.activo&is_demo=eq.false&select=*');
     CLIENTS_LIVE=clients||[];
@@ -1180,30 +1181,32 @@ async function loadData(){
 
     const fmt=(n)=>'$'+Math.round(n).toLocaleString('en');
 
-    // Command Center KPIs
-    document.getElementById('kpi-revenue').textContent=fmt(totalMRR);
-    document.getElementById('kpi-mrr').textContent=fmt(totalMRR);
-    document.getElementById('kpi-clients').textContent=CLIENTS_LIVE.length;
-    document.getElementById('kpi-churn').textContent=churnRate+'%';
-    document.getElementById('kpi-clients-trend').textContent=`${CLIENTS_LIVE.length} activos`;
+    // v1.0.36 ELECTRON-8 fix · helper defensivo (DOM IDs cambian con rediseños · cc-* y ov-* son orphans de pre-v1.0.35)
+    const _setText = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
 
-    // Command Center domain cards
-    document.getElementById('cc-leads').textContent=leadsCount;
-    document.getElementById('cc-citas').textContent=citasCount;
-    document.getElementById('cc-conv').textContent=convRate+'%';
-    document.getElementById('cc-revenue').textContent=fmt(totalMRR);
-    document.getElementById('cc-arr').textContent=fmt(arr);
-    document.getElementById('cc-rpc').textContent=fmt(rpc);
+    // Command Center KPIs (kpi-* IDs sí existen)
+    _setText('kpi-revenue', fmt(totalMRR));
+    _setText('kpi-mrr', fmt(totalMRR));
+    _setText('kpi-clients', CLIENTS_LIVE.length);
+    _setText('kpi-churn', churnRate+'%');
+    _setText('kpi-clients-trend', `${CLIENTS_LIVE.length} activos`);
 
-    // Overview
-    document.getElementById('ov-leads').textContent=leadsCount;
-    document.getElementById('ov-citas').textContent=citasCount;
-    document.getElementById('ov-conv').textContent=convRate+'%';
-    document.getElementById('ov-clients').textContent=CLIENTS_LIVE.length;
-    // ov-nps: use IA suggestion approval ratio as health proxy until NPS pulse (DS2-future) is built
+    // Command Center domain cards (cc-* eran del diseño viejo · ahora son cc2-* · mantenemos refs por compat)
+    _setText('cc-leads', leadsCount);
+    _setText('cc-citas', citasCount);
+    _setText('cc-conv', convRate+'%');
+    _setText('cc-revenue', fmt(totalMRR));
+    _setText('cc-arr', fmt(arr));
+    _setText('cc-rpc', fmt(rpc));
+
+    // Overview (ov-* eliminados en rediseño v1.0.35 · refs defensivas por si vuelven)
+    _setText('ov-leads', leadsCount);
+    _setText('ov-citas', citasCount);
+    _setText('ov-conv', convRate+'%');
+    _setText('ov-clients', CLIENTS_LIVE.length);
     const lastKpi=kpis.length?kpis[kpis.length-1]:null;
     const totalIaActivity=(kpis||[]).reduce((s,k)=>s+(k.ia_suggestions_approved||0),0);
-    document.getElementById('ov-nps').textContent=totalIaActivity>0?totalIaActivity+' acciones IA':'—';
+    _setText('ov-nps', totalIaActivity>0?totalIaActivity+' acciones IA':'—');
 
     // Revenue
     document.getElementById('rev-mrr').textContent=fmt(totalMRR);
@@ -1211,10 +1214,13 @@ async function loadData(){
     document.getElementById('rev-rpc').textContent=fmt(rpc);
     document.getElementById('rev-clients').textContent=CLIENTS_LIVE.length;
 
-    // Supabase integration card
-    supaChip.className='chip chip-ok';
-    supaChip.innerHTML='<span class="chip-dot"></span>LIVE';
-    document.getElementById('supa-clients-count').textContent=CLIENTS_LIVE.length;
+    // Supabase integration card · v1.0.36 ELECTRON-8 fix · supa-chip + supa-clients-count removed from HTML
+    // Integrations panel (line 746) ahora muestra el estado de Supabase con data-int-chip selector.
+    // Defensive: solo update si los elementos existen (resilience contra futuros rediseños).
+    const _supaChip = document.getElementById('supa-chip');
+    if (_supaChip) { _supaChip.className='chip chip-ok'; _supaChip.innerHTML='<span class="chip-dot"></span>LIVE'; }
+    const _supaCount = document.getElementById('supa-clients-count');
+    if (_supaCount) { _supaCount.textContent = CLIENTS_LIVE.length; }
 
     // Clients view
     document.getElementById('cl-active').textContent=CLIENTS_LIVE.length;
@@ -1253,17 +1259,20 @@ async function loadData(){
       window.CHART_DATA=kpis.map(k=>k.ingresos_generados||0);
     }
 
-    // Feed
-    const feedPanel=document.getElementById('feed-panel');
-    const feedMeta=document.getElementById('feed-meta');
+    // Feed · v1.0.36 ELECTRON-8 fix · IDs renombrados en v1.0.35
+    //   feed-panel  → cc2-feed       (línea 674 en HTML)
+    //   feed-meta   → cc2-feed-meta  (línea 673 en HTML)
+    // Mantenemos null guards por defensa contra futuros rediseños.
+    const feedPanel = document.getElementById('cc2-feed') || document.getElementById('feed-panel');
+    const feedMeta  = document.getElementById('cc2-feed-meta') || document.getElementById('feed-meta');
     if(CLIENTS_LIVE.length>0){
-      feedMeta.textContent=`${CLIENTS_LIVE.length} clientes · data live`;
-      feedPanel.innerHTML=CLIENTS_LIVE.slice(0,5).map(c=>`
+      if(feedMeta) feedMeta.textContent=`${CLIENTS_LIVE.length} clientes · data live`;
+      if(feedPanel) feedPanel.innerHTML=CLIENTS_LIVE.slice(0,5).map(c=>`
         <div class="feed-row"><div class="feed-icon ok">✓</div><div class="feed-body">Cliente activo · <strong>${c.empresa||c.nombre}</strong> · ${c.plan||'plan'}<span class="feed-tag">CLIENTES</span></div><div class="feed-time">live</div></div>
       `).join('');
     } else {
-      feedMeta.textContent='sin actividad';
-      feedPanel.innerHTML=`<div class="feed-row"><div class="feed-icon">·</div><div class="feed-body dim">Sin actividad reciente. Agrega tu primer cliente.</div><div class="feed-time">—</div></div>`;
+      if(feedMeta) feedMeta.textContent='sin actividad';
+      if(feedPanel) feedPanel.innerHTML=`<div class="feed-row"><div class="feed-icon">·</div><div class="feed-body dim">Sin actividad reciente. Agrega tu primer cliente.</div><div class="feed-time">—</div></div>`;
     }
 
     IS_LIVE=true;
@@ -1275,11 +1284,14 @@ async function loadData(){
     toast(`${CLIENTS_LIVE.length} cliente${CLIENTS_LIVE.length===1?'':'s'} cargado${CLIENTS_LIVE.length===1?'':'s'} de Supabase`,'success');
 
   }catch(err){
+    // v1.0.36 ELECTRON-8 fix · agregadas null guards
+    // Antes peteaba con "Cannot set properties of null (setting 'className')"
+    // cuando los elementos #supa-chip o #cl-realtime no existían (rediseño v1.0.35)
     console.warn('Supabase load error:',err.message);
-    document.getElementById('supa-chip').className='chip chip-err';
-    document.getElementById('supa-chip').innerHTML='<span class="chip-dot"></span>ERROR';
-    document.getElementById('cl-realtime').textContent='ERROR';
-    document.getElementById('cl-realtime').style.color='var(--danger)';
+    const _supaChip = document.getElementById('supa-chip');
+    if(_supaChip) { _supaChip.className='chip chip-err'; _supaChip.innerHTML='<span class="chip-dot"></span>ERROR'; }
+    const _clRealtime = document.getElementById('cl-realtime');
+    if(_clRealtime) { _clRealtime.textContent='ERROR'; _clRealtime.style.color='var(--danger)'; }
     const connPill = document.getElementById('conn-pill');
     if(connPill){ connPill.innerHTML = '<span class="pill-dot"></span>SIN CONEXIÓN'; connPill.className = 'pill pill-alert'; }
     toast('Error conectando a Supabase: '+err.message,'err');

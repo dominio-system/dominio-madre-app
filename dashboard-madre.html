@@ -272,8 +272,26 @@ body.collapsed .user-info{opacity:0;width:0;}
 .feed-icon{width:22px;height:22px;border-radius:4px;background:var(--card2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--text2);flex-shrink:0;font-family:'Geist Mono',monospace;}
 .feed-icon.ok{background:var(--success-s);border-color:rgba(111,207,151,0.2);color:var(--success);}
 .feed-icon.err{background:var(--danger-s);border-color:rgba(235,87,87,0.2);color:var(--danger);}
-.feed-body{flex:1;font-size:11px;color:var(--text2);line-height:1.5;}
+.feed-body{flex:1;min-width:0;font-size:11px;color:var(--text2);line-height:1.5;}
 .feed-body strong{color:var(--text);font-weight:600;}
+.feed-time{flex-shrink:0;font-size:10px;color:var(--text3);font-family:'Geist Mono',monospace;letter-spacing:0.3px;white-space:nowrap;}
+
+/* v1.0.38 · Feed con altura fija + scroll interno + fades top/bottom.
+   Antes el cuadro crecia con cada actividad y descuadraba el grid.
+   Ahora altura locked a 380px (10 filas aprox), scroll interno suave. */
+.feed-scroll-wrap{position:relative;height:380px;display:flex;flex-direction:column;min-height:0;}
+.feed-scroll-wrap::before,.feed-scroll-wrap::after{
+  content:'';position:absolute;left:0;right:0;height:14px;pointer-events:none;z-index:2;transition:opacity 180ms;
+}
+.feed-scroll-wrap::before{top:0;background:linear-gradient(to bottom,var(--card),transparent);}
+.feed-scroll-wrap::after{bottom:0;background:linear-gradient(to top,var(--card),transparent);}
+.feed-scroll-wrap.no-scroll-top::before{opacity:0;}
+.feed-scroll-wrap.no-scroll-bottom::after{opacity:0;}
+.feed-scroll{flex:1;min-height:0;overflow-y:auto;scrollbar-gutter:stable;}
+.feed-scroll::-webkit-scrollbar{width:6px;}
+.feed-scroll::-webkit-scrollbar-track{background:transparent;}
+.feed-scroll::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+.feed-scroll::-webkit-scrollbar-thumb:hover{background:var(--text3);}
 .feed-tag{font-size:8px;font-family:'Geist Mono',monospace;padding:1px 6px;border-radius:3px;letter-spacing:1.2px;margin-left:6px;background:var(--card3);color:var(--text3);text-transform:uppercase;border:1px solid var(--border);}
 .feed-time{font-size:9px;color:var(--text3);font-family:'Geist Mono',monospace;flex-shrink:0;}
 
@@ -670,9 +688,12 @@ body.notif-open .notif-overlay{pointer-events:auto;}
       <!-- Activity feed + Health table (2 columnas) -->
       <div class="cc2-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;">
         <div class="panel">
-          <div class="panel-head"><div class="panel-title">Actividad reciente</div><div class="panel-sub" id="cc2-feed-meta">últimos 8</div></div>
-          <div id="cc2-feed">
-            <div class="feed-row"><div class="feed-icon">·</div><div class="feed-body dim">Esperando datos…</div><div class="feed-time">—</div></div>
+          <div class="panel-head"><div class="panel-title">Actividad reciente</div><div class="panel-sub" id="cc2-feed-meta">últimos 10</div></div>
+          <!-- v1.0.38 · wrapper con altura fija + fades + scroll interno -->
+          <div class="feed-scroll-wrap" id="cc2-feed-wrap">
+            <div class="feed-scroll" id="cc2-feed">
+              <div class="feed-row"><div class="feed-icon">·</div><div class="feed-body dim">Esperando datos…</div><div class="feed-time">—</div></div>
+            </div>
           </div>
         </div>
         <div class="panel">

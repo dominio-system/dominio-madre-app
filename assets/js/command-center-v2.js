@@ -198,31 +198,55 @@
   }
 
   // ─── Activity feed (lee de v_global_activity_feed · existente en madre) ───
+  // v1.0.38 · limit 8 → 10. Altura del contenedor locked en CSS (.feed-scroll-wrap 380px),
+  // scroll interno con fades top/bottom para que el cuadro no descuadre el grid.
+  // Match KIND_ICON ahora soporta event_type con prefijo "lead.", "appointment.", "invoice."
+  // que es el formato real de v_global_activity_feed (antes hacia toLowerCase sobre el
+  // event_type completo y nunca pegaba — todos caian a "default" icono "·").
   async function loadActivityFeed(){
     const el = document.getElementById('cc2-feed');
+    const wrap = document.getElementById('cc2-feed-wrap');
     if(!el) return;
     try {
-      const rows = await global.sbGet('v_global_activity_feed', 'order=created_at.desc&limit=8&select=*').catch(() => []);
+      const rows = await global.sbGet('v_global_activity_feed', 'order=created_at.desc&limit=10&select=*').catch(() => []);
       if(!Array.isArray(rows) || rows.length === 0){
         el.innerHTML = `<div class="feed-row"><div class="feed-icon">·</div><div class="feed-body dim">Sin actividad reciente</div><div class="feed-time">—</div></div>`;
+        if(wrap) wrap.classList.add('no-scroll-top','no-scroll-bottom');
         return;
       }
-      const KIND_ICON = { lead:'+', appointment:'→', invoice:'$', client:'+', incident:'!', deploy:'↻', default:'·' };
-      const KIND_CLASS = { lead:'ok', appointment:'ok', invoice:'ok', client:'ok', incident:'warn', deploy:'', default:'' };
+      const KIND_ICON = { lead:'+', appointment:'→', invoice:'$', client:'+', ticket:'!', incident:'!', deploy:'↻', default:'·' };
+      const KIND_CLASS = { lead:'ok', appointment:'ok', invoice:'ok', client:'ok', ticket:'warn', incident:'warn', deploy:'', default:'' };
       el.innerHTML = rows.map(r => {
-        const k = (r.kind || r.event_type || 'default').toLowerCase();
+        // event_type viene como "lead.created", "ticket.created", etc · tomamos el prefijo
+        const fullKind = (r.kind || r.event_type || 'default').toLowerCase();
+        const k = fullKind.split('.')[0];
         const icon = KIND_ICON[k] || KIND_ICON.default;
         const cls  = KIND_CLASS[k] || '';
         const ts = r.created_at ? (global.MadreUtils?.relativeTime?.(r.created_at) || r.created_at) : '—';
         return `
-          <div class="feed-row ${cls}">
-            <div class="feed-icon">${icon}</div>
+          <div class="feed-row">
+            <div class="feed-icon ${cls}">${icon}</div>
             <div class="feed-body">${escape(r.title || r.summary || r.description || 'Evento')}${r.subtitle ? ' · <span class="dim">'+escape(r.subtitle)+'</span>' : ''}</div>
             <div class="feed-time">${escape(ts)}</div>
           </div>`;
       }).join('');
       const meta = document.getElementById('cc2-feed-meta');
       if(meta) meta.textContent = `últimos ${rows.length}`;
+
+      // Actualizar fades de scroll arriba/abajo + listener una sola vez
+      if(wrap){
+        const updateFades = () => {
+          const atTop    = el.scrollTop <= 4;
+          const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 4;
+          wrap.classList.toggle('no-scroll-top', atTop);
+          wrap.classList.toggle('no-scroll-bottom', atBottom);
+        };
+        if(!el._fadesWired){
+          el.addEventListener('scroll', updateFades);
+          el._fadesWired = true;
+        }
+        updateFades();
+      }
     } catch(err){
       el.innerHTML = `<div class="feed-row"><div class="feed-icon" style="color:var(--danger);">!</div><div class="feed-body" style="color:var(--danger);">${escape(err.message || 'error')}</div></div>`;
     }

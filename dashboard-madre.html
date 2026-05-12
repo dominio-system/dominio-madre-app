@@ -1285,7 +1285,7 @@ async function loadData(){
 
   }catch(err){
     // v1.0.36 ELECTRON-8 fix · agregadas null guards
-    // Antes peteaba con "Cannot set properties of null (setting 'className')"
+    // Antes fallaba con "Cannot set properties of null (setting 'className')"
     // cuando los elementos #supa-chip o #cl-realtime no existían (rediseño v1.0.35)
     console.warn('Supabase load error:',err.message);
     const _supaChip = document.getElementById('supa-chip');

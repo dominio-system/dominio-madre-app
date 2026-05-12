@@ -397,8 +397,11 @@
   });
 
   // ─── API pública ───
-  global.openClienteDetail = openClienteDetail;
-  global.closeClienteDetail = closeClienteDetail;
+  // v1.0.37 hotfix · Eliminadas las exposiciones de openClienteDetail/closeClienteDetail
+  // porque chocaban con cliente-detail.js (componente nuevo · 6 tabs). El modal viejo
+  // (5 tabs · datos vacíos) sobreescribía al nuevo según orden de carga. Ahora
+  // cliente-detail.js es la única fuente de window.openClienteDetail.
+  // Mantenemos invoice + confirm que sí son usados por el resto del código.
   global.openInvoiceDetail = openInvoiceDetail;
   global.closeInvoiceDetail = closeInvoiceDetail;
   global.cTabSwitch = cTabSwitch;

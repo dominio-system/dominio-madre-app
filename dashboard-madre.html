@@ -277,9 +277,10 @@ body.collapsed .user-info{opacity:0;width:0;}
 .feed-time{flex-shrink:0;font-size:10px;color:var(--text3);font-family:'Geist Mono',monospace;letter-spacing:0.3px;white-space:nowrap;}
 
 /* v1.0.38 · Feed con altura fija + scroll interno + fades top/bottom.
+   v1.0.39 · Ajustado a 220px (~5 filas visibles, tamaño compacto original).
    Antes el cuadro crecia con cada actividad y descuadraba el grid.
-   Ahora altura locked a 380px (10 filas aprox), scroll interno suave. */
-.feed-scroll-wrap{position:relative;height:380px;display:flex;flex-direction:column;min-height:0;}
+   Ahora altura locked, scroll interno cuando hay mas de 5 eventos. */
+.feed-scroll-wrap{position:relative;height:220px;display:flex;flex-direction:column;min-height:0;}
 .feed-scroll-wrap::before,.feed-scroll-wrap::after{
   content:'';position:absolute;left:0;right:0;height:14px;pointer-events:none;z-index:2;transition:opacity 180ms;
 }
